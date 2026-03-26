@@ -2,7 +2,11 @@ package com.zm.docmind.controller;
 
 import com.zm.docmind.service.QaAssistant;
 import com.zm.docmind.service.QaAssistantManager;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/qa")
@@ -24,6 +28,31 @@ public class QaController {
                       @RequestParam String question) {
         QaAssistant assistant = assistantManager.getAssistant(userId);
         return assistant.answer(question);
+    }
+
+    /**
+     * 流式问答接口（SSE）
+     * @param userId 用户ID（可选，默认为 "default"）
+     * @param question 用户问题
+     */
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamAsk(@RequestParam(required = false, defaultValue = "default") String userId,
+                                @RequestParam String question) {
+        SseEmitter emitter = new SseEmitter(60000L);
+        QaAssistant assistant = assistantManager.getAssistant(userId);
+
+        assistant.stream(question)
+                .onPartialResponse(token -> {
+                    try {
+                        emitter.send(SseEmitter.event().data(token));
+                    } catch (IOException e) {
+                        emitter.completeWithError(e);
+                    }
+                })
+                .onCompleteResponse(response -> emitter.complete())
+                .onError(emitter::completeWithError);
+
+        return emitter;
     }
 
     /**
