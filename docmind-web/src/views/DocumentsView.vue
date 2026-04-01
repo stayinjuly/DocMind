@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { documentApi } from '../api'
 import { useUserStore } from '../stores/user'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { Document, UploadResponse } from '../api/types'
 
 const userStore = useUserStore()
@@ -26,8 +26,8 @@ async function loadDocuments() {
   }
 }
 
-async function handleUpload(options: { file: File }) {
-  const file = options.file
+async function handleUpload(options: { raw: File }) {
+  const file = options.raw
   const ext = file.name.split('.').pop()?.toLowerCase()
 
   if (!['txt', 'md'].includes(ext || '')) {
@@ -54,6 +54,16 @@ async function handleUpload(options: { file: File }) {
 }
 
 async function handleDelete(doc: Document) {
+  try {
+    await ElMessageBox.confirm(`确定要删除文档「${doc.name}」吗？`, '删除确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+
   try {
     await documentApi.delete(doc.id)
     ElMessage.success('删除成功')
