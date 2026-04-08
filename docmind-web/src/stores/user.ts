@@ -1,17 +1,28 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
-  const userId = ref(localStorage.getItem('userId') || '')
+  const token = ref(localStorage.getItem('token') || '')
+  const email = ref(localStorage.getItem('email') || '')
 
-  function setUserId(id: string) {
-    userId.value = id
-    localStorage.setItem('userId', id)
+  const isLoggedIn = computed(() => !!token.value)
+
+  // 向后兼容：现有代码中引用 userStore.userId 的地方会自动解析为 email
+  const userId = computed(() => email.value)
+
+  function setAuth(newToken: string, newEmail: string) {
+    token.value = newToken
+    email.value = newEmail
+    localStorage.setItem('token', newToken)
+    localStorage.setItem('email', newEmail)
   }
 
-  function isLoggedIn() {
-    return userId.value.trim().length > 0
+  function logout() {
+    token.value = ''
+    email.value = ''
+    localStorage.removeItem('token')
+    localStorage.removeItem('email')
   }
 
-  return { userId, setUserId, isLoggedIn }
+  return { token, email, isLoggedIn, userId, setAuth, logout }
 })

@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { documentApi } from '../api'
-import { useUserStore } from '../stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { Document, UploadResponse } from '../api/types'
 
-const userStore = useUserStore()
 const documents = ref<Document[]>([])
 const loading = ref(false)
 const uploadLoading = ref(false)
@@ -37,7 +35,7 @@ async function handleUpload(options: { raw: File }) {
 
   uploadLoading.value = true
   try {
-    const response = await documentApi.upload(file, userStore.userId)
+    const response = await documentApi.upload(file)
     const result = response.data as UploadResponse
 
     if (result.success) {

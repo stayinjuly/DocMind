@@ -6,14 +6,14 @@ const userStore = useUserStore()
 const router = useRouter()
 
 function logout() {
-  userStore.setUserId('')
+  userStore.logout()
   router.push('/login')
 }
 </script>
 
 <template>
   <div class="app">
-    <el-container v-if="userStore.isLoggedIn()">
+    <el-container v-if="userStore.isLoggedIn">
       <el-header class="app-header">
         <div class="logo">DocMind</div>
         <el-menu mode="horizontal" router :ellipsis="false" class="nav-menu">
@@ -21,7 +21,7 @@ function logout() {
           <el-menu-item index="/documents">文档管理</el-menu-item>
         </el-menu>
         <div class="user-info">
-          <span>{{ userStore.userId }}</span>
+          <span>{{ userStore.email }}</span>
           <el-button text @click="logout">退出</el-button>
         </div>
       </el-header>

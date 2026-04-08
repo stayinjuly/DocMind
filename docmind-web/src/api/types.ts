@@ -18,3 +18,13 @@ export interface UploadResponse {
   message: string
   documentId?: string
 }
+
+export interface AuthRequest {
+  email: string
+  password: string
+}
+
+export interface AuthResponse {
+  token: string
+  email: string
+}

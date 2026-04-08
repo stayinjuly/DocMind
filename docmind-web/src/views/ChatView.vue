@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { useUserStore } from '../stores/user'
 import { createChatStream, qaApi } from '../api'
 import { ElMessage } from 'element-plus'
 import type { ChatMessage } from '../api/types'
 
-const userStore = useUserStore()
 const messages = ref<ChatMessage[]>([])
 const inputMessage = ref('')
 const loading = ref(false)
@@ -25,7 +23,7 @@ async function sendMessage() {
 
   scrollToBottom()
 
-  const eventSource = createChatStream(question, userStore.userId)
+  const eventSource = createChatStream(question)
 
   eventSource.onmessage = (event) => {
     if (event.data === '[DONE]') {
@@ -48,7 +46,7 @@ async function sendMessage() {
 
 async function clearHistory() {
   try {
-    await qaApi.clearHistory(userStore.userId)
+    await qaApi.clearHistory()
     messages.value = []
     ElMessage.success('对话历史已清除')
   } catch {
