@@ -33,7 +33,7 @@ public class AiConfig {
     @Value("${openai.base-url}")
     private String baseUrl;
 
-    @Value("${openai.embedding-model}")
+    @Value("${dashscope.embedding-model}")
     private String embeddingModelName;
 
     @Value("${dashscope.api_key}")
