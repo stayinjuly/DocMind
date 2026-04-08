@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.regex.Pattern;
 
 /**
  * 认证服务
@@ -14,6 +15,8 @@ import java.time.LocalDateTime;
  */
 @Service
 public class AuthService {
+
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$");
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -33,6 +36,9 @@ public class AuthService {
     public AuthResponse register(String email, String rawPassword) {
         if (email == null || email.trim().isEmpty()) {
             throw new IllegalArgumentException("邮箱不能为空");
+        }
+        if (!EMAIL_PATTERN.matcher(email.trim()).matches()) {
+            throw new IllegalArgumentException("邮箱格式不正确");
         }
         if (rawPassword == null || rawPassword.length() < 6) {
             throw new IllegalArgumentException("密码不能少于6位");
