@@ -32,8 +32,13 @@ public class AuthController {
             AuthResponse response = authService.register(request.getEmail(), request.getPassword());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body(Map.of("error", e.getMessage()));
+            String message = e.getMessage();
+            if (message.contains("已被注册")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("error", message));
+            }
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", message));
         }
     }
 

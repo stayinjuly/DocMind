@@ -38,6 +38,9 @@ public class DocumentService {
 
     private final Map<String, Document> documentStore = new ConcurrentHashMap<>();
 
+    // 记录每个文档对应的嵌入向量 ID，用于删除时清理
+    private final Map<String, List<String>> documentEmbeddingIds = new ConcurrentHashMap<>();
+
     public DocumentService(EmbeddingModel embeddingModel, EmbeddingStore<TextSegment> embeddingStore) {
         this.embeddingModel = embeddingModel;
         this.embeddingStore = embeddingStore;
@@ -56,6 +59,15 @@ public class DocumentService {
 
     public List<Document> getAllDocuments() {
         return new ArrayList<>(documentStore.values());
+    }
+
+    /**
+     * 获取指定用户的文档列表
+     */
+    public List<Document> getDocumentsByUser(String userId) {
+        return documentStore.values().stream()
+                .filter(doc -> userId.equals(doc.getUserId()))
+                .toList();
     }
 
     public Document getDocument(String id) {
@@ -138,6 +150,13 @@ public class DocumentService {
             return false;
         }
 
+        // 清理关联的向量嵌入
+        List<String> embeddingIds = documentEmbeddingIds.remove(id);
+        if (embeddingIds != null) {
+            embeddingStore.removeAll(embeddingIds);
+            log.info("已清理文档 {} 的 {} 个嵌入向量", id, embeddingIds.size());
+        }
+
         try {
             Files.deleteIfExists(Paths.get(document.getFilePath()));
             log.info("文档删除成功: {}", id);
@@ -157,6 +176,7 @@ public class DocumentService {
 
     private void embedDocument(String documentId, String content) {
         List<String> chunks = splitIntoChunks(content, 500);
+        List<String> embeddingIds = new ArrayList<>();
 
         for (String chunk : chunks) {
             if (chunk.trim().isEmpty()) {
@@ -166,9 +186,11 @@ public class DocumentService {
             TextSegment segment = TextSegment.from(chunk);
 
             Embedding embedding = embeddingModel.embed(segment).content();
-            embeddingStore.add(embedding, segment);
+            String embeddingId = embeddingStore.add(embedding, segment);
+            embeddingIds.add(embeddingId);
         }
 
+        documentEmbeddingIds.put(documentId, embeddingIds);
         log.info("文档向量化完成: {}, 共 {} 个分块", documentId, chunks.size());
     }
 
