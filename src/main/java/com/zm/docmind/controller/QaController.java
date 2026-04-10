@@ -3,6 +3,7 @@ package com.zm.docmind.controller;
 import com.zm.docmind.service.QaAssistant;
 import com.zm.docmind.service.QaAssistantManager;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -20,26 +21,26 @@ public class QaController {
 
     /**
      * 问答接口（支持用户隔离）
-     * @param userId 用户ID（可选，默认为 "default"）
+     * @param email 当前登录用户邮箱（从 JWT 令牌中提取）
      * @param question 用户问题
      */
     @GetMapping
-    public String ask(@RequestParam(required = false, defaultValue = "default") String userId,
+    public String ask(@AuthenticationPrincipal String email,
                       @RequestParam String question) {
-        QaAssistant assistant = assistantManager.getAssistant(userId);
+        QaAssistant assistant = assistantManager.getAssistant(email);
         return assistant.answer(question);
     }
 
     /**
      * 流式问答接口（SSE）
-     * @param userId 用户ID（可选，默认为 "default"）
+     * @param email 当前登录用户邮箱（从 JWT 令牌中提取）
      * @param question 用户问题
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamAsk(@RequestParam(required = false, defaultValue = "default") String userId,
+    public SseEmitter streamAsk(@AuthenticationPrincipal String email,
                                 @RequestParam String question) {
         SseEmitter emitter = new SseEmitter(60000L);
-        QaAssistant assistant = assistantManager.getAssistant(userId);
+        QaAssistant assistant = assistantManager.getAssistant(email);
 
         assistant.stream(question)
                 .onPartialResponse(token -> {
@@ -57,17 +58,18 @@ public class QaController {
                         emitter.completeWithError(e);
                     }
                 })
-                .onError(emitter::completeWithError);
+                .onError(emitter::completeWithError)
+                .start();
 
         return emitter;
     }
 
     /**
-     * 清除用户对话历史
+     * 清除当前用户对话历史
      */
-    @DeleteMapping("/history/del/{userId}")
-    public String clearHistory(@PathVariable String userId) {
-        assistantManager.clearUserHistory(userId);
-        return "用户 " + userId + " 的对话历史已清除";
+    @DeleteMapping("/history")
+    public String clearHistory(@AuthenticationPrincipal String email) {
+        assistantManager.clearUserHistory(email);
+        return "对话历史已清除";
     }
 }
