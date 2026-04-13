@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
 
@@ -14,11 +16,10 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Table("doc_document")
 public class Document {
 
-    /**
-     * 文档唯一标识
-     */
+    @Id
     private String id;
 
     /**
@@ -27,7 +28,7 @@ public class Document {
     private String name;
 
     /**
-     * 文件类型（txt, md）
+     * 文件类型（txt, md, pdf, docx）
      */
     private String type;
 
@@ -42,12 +43,22 @@ public class Document {
     private String filePath;
 
     /**
+     * 是否公共文档
+     */
+    private boolean isPublic;
+
+    /**
+     * 分块数量
+     */
+    private int chunkCount;
+
+    /**
      * 上传时间
      */
     private LocalDateTime uploadTime;
 
     /**
-     * 上传用户ID
+     * 上传用户ID（邮箱）
      */
     private String userId;
 }

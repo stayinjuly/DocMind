@@ -33,15 +33,25 @@ public class DocumentController {
     }
 
     /**
+     * 获取所有公共文档列表
+     */
+    @GetMapping("/public")
+    public List<Document> listPublicDocuments() {
+        return documentService.getPublicDocuments();
+    }
+
+    /**
      * 上传文档
-     * @param file 文档文件（TXT/Markdown）
+     * @param file 文档文件（TXT/Markdown/PDF/Word）
+     * @param isPublic 是否公开（默认 false）
      * @param email 当前登录用户邮箱（从 JWT 令牌中提取）
      */
     @PostMapping
     public ResponseEntity<DocumentUploadResponse> uploadDocument(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "isPublic", defaultValue = "false") boolean isPublic,
             @AuthenticationPrincipal String email) {
-        DocumentUploadResponse response = documentService.uploadDocument(file, email);
+        DocumentUploadResponse response = documentService.uploadDocument(file, email, isPublic);
         if (response.isSuccess()) {
             return ResponseEntity.ok(response);
         }
