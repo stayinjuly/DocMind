@@ -58,7 +58,14 @@ public class QaController {
                         emitter.completeWithError(e);
                     }
                 })
-                .onError(emitter::completeWithError)
+                .onError(e -> {
+                    try {
+                        emitter.send(SseEmitter.event().data("[ERROR] " + e.getMessage()));
+                        emitter.complete();
+                    } catch (IOException ignored) {
+                        emitter.completeWithError(e);
+                    }
+                })
                 .start();
 
         return emitter;

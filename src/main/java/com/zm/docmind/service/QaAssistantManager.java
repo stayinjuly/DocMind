@@ -3,6 +3,7 @@ package com.zm.docmind.service;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
@@ -26,6 +27,7 @@ import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metad
 public class QaAssistantManager {
 
     private final ChatModel chatModel;
+    private final StreamingChatModel streamingChatModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
     private final ChatMemoryStore chatMemoryStore;
@@ -35,9 +37,11 @@ public class QaAssistantManager {
     private static final int MAX_MESSAGES = 10;
 
     public QaAssistantManager(ChatModel chatModel,
+                              StreamingChatModel streamingChatModel,
                               EmbeddingStore<TextSegment> embeddingStore,
                               EmbeddingModel embeddingModel) {
         this.chatModel = chatModel;
+        this.streamingChatModel = streamingChatModel;
         this.embeddingStore = embeddingStore;
         this.embeddingModel = embeddingModel;
         this.chatMemoryStore = new InMemoryChatMemoryStore();
@@ -68,6 +72,7 @@ public class QaAssistantManager {
 
         return AiServices.builder(QaAssistant.class)
                 .chatModel(chatModel)
+                .streamingChatModel(streamingChatModel)
                 .contentRetriever(contentRetriever)
                 .chatMemory(chatMemory)
                 .build();

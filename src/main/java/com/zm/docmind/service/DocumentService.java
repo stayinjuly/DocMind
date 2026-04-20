@@ -31,8 +31,10 @@ import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metad
 @Service
 public class DocumentService {
 
-    private static final long MAX_FILE_SIZE = 10_000_000;
-    private static final Set<String> SUPPORTED_TYPES = Set.of("txt", "md", "pdf", "docx", "doc");
+    private static final Set<String> SUPPORTED_TYPES = Set.of("txt", "md", "pdf", "docx", "doc", "xlsx", "xls", "csv");
+
+    @Value("${docmind.storage.max-file-size:10}")
+    private int maxFileSize;
 
     @Value("${docmind.storage.path}")
     private String storagePath;
@@ -87,8 +89,8 @@ public class DocumentService {
             return DocumentUploadResponse.error("文件名无效");
         }
 
-        if (file.getSize() > MAX_FILE_SIZE) {
-            return DocumentUploadResponse.error("文件过大，最大支持 10MB");
+        if (file.getSize() > (long) maxFileSize * 1_000_000) {
+            return DocumentUploadResponse.error("文件过大，最大支持 " + maxFileSize + "MB");
         }
 
         String extension = getFileExtension(originalFilename).toLowerCase();

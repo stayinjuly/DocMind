@@ -28,8 +28,8 @@ async function handleUpload(options: { raw: File }) {
   const file = options.raw
   const ext = file.name.split('.').pop()?.toLowerCase()
 
-  if (!['txt', 'md'].includes(ext || '')) {
-    ElMessage.error('仅支持 TXT 和 Markdown 文件')
+  if (!['txt', 'md', 'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv'].includes(ext || '')) {
+    ElMessage.error('仅支持 TXT、Markdown、PDF、Word 和 Excel 文件')
     return
   }
 
@@ -90,7 +90,7 @@ function formatDate(dateStr: string): string {
         :show-file-list="false"
         :before-upload="() => false"
         :on-change="handleUpload"
-        accept=".txt,.md"
+        accept=".txt,.md,.pdf,.docx,.doc,.xlsx,.xls,.csv"
       >
         <el-button type="primary" :loading="uploadLoading">
           上传文档

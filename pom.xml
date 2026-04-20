@@ -72,6 +72,13 @@
             <scope>compile</scope>
         </dependency>
 
+        <!-- 智谱 AI -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-community-zhipu-ai</artifactId>
+            <version>1.12.2-beta22</version>
+        </dependency>
+
         <!-- PgVector 向量存储 -->
         <dependency>
             <groupId>dev.langchain4j</groupId>

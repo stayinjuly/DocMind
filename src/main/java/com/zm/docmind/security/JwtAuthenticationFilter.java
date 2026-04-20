@@ -49,6 +49,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
+     * 不跳过异步 dispatch，确保 SSE 等异步场景也能正确认证
+     */
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
+    /**
      * 从 Authorization 请求头或 token 查询参数中提取令牌
      */
     private String extractToken(HttpServletRequest request) {
