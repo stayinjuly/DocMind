@@ -1,6 +1,7 @@
 package com.zm.docmind.config;
 
 import com.zm.docmind.security.JwtAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -43,6 +44,10 @@ public class SecurityConfig {
                     .requestMatchers("/h2-console/**").permitAll()
                     .requestMatchers("/error").permitAll()
                     .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex
+                    .authenticationEntryPoint((request, response, authException) ->
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "未登录或令牌已过期"))
             )
             .headers(headers ->
                     headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
