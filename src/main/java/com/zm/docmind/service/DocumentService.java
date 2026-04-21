@@ -119,9 +119,12 @@ public class DocumentService {
                     .userId(userId)
                     .build();
 
+            // 先保存文档元数据，确保数据入库
+            documentRepository.save(document);
+
             int chunkCount = embedDocument(documentId, content, userId, isPublic);
             document.setChunkCount(chunkCount);
-
+            document.setNewEntity(false);
             documentRepository.save(document);
 
             log.info("文档上传成功: {} ({}), 用户: {}, 公开: {}", originalFilename, documentId, userId, isPublic);
@@ -133,7 +136,7 @@ public class DocumentService {
             if (e instanceof RuntimeException rt && rt.getMessage() != null && rt.getMessage().startsWith("文档解析失败")) {
                 return DocumentUploadResponse.error("文档解析失败，请检查文件是否损坏");
             }
-            return DocumentUploadResponse.error("文档处理失败");
+            return DocumentUploadResponse.error("文档处理失败: " + e.getMessage());
         }
     }
 

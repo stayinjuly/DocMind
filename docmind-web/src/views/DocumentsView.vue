@@ -7,6 +7,7 @@ import type { Document, UploadResponse } from '../api/types'
 const documents = ref<Document[]>([])
 const loading = ref(false)
 const uploadLoading = ref(false)
+const uploadPublic = ref(false)
 
 onMounted(() => {
   loadDocuments()
@@ -35,7 +36,7 @@ async function handleUpload(options: { raw: File }) {
 
   uploadLoading.value = true
   try {
-    const response = await documentApi.upload(file)
+    const response = await documentApi.upload(file, uploadPublic.value)
     const result = response.data as UploadResponse
 
     if (result.success) {
@@ -96,6 +97,10 @@ function formatDate(dateStr: string): string {
           上传文档
         </el-button>
       </el-upload>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px; color: #909399;">公共文档</span>
+        <el-switch v-model="uploadPublic" />
+      </div>
     </div>
 
     <el-table :data="documents" v-loading="loading" stripe>

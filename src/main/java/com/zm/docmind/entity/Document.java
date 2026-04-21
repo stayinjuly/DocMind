@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.LocalDateTime;
@@ -17,7 +19,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table("doc_document")
-public class Document {
+public class Document implements Persistable<String> {
 
     @Id
     private String id;
@@ -61,4 +63,19 @@ public class Document {
      * 上传用户ID（邮箱）
      */
     private String userId;
+
+    /**
+     * 标记实体是否为新创建（未被持久化）
+     * Spring Data JDBC 通过 @Id 是否为 null 判断 INSERT/UPDATE，
+     * 但我们的 ID 是预先生成的 UUID（永远不为 null），会导致 save() 误执行 UPDATE。
+     * 通过 Persistable 接口显式控制此行为。
+     */
+    @Transient
+    @Builder.Default
+    private boolean newEntity = true;
+
+    @Override
+    public boolean isNew() {
+        return newEntity;
+    }
 }

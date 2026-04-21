@@ -47,9 +47,10 @@ export const authApi = {
 export const documentApi = {
   list: () => api.get<Document[]>('/documents'),
 
-  upload: (file: File) => {
+  upload: (file: File, isPublic: boolean = false) => {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('isPublic', String(isPublic))
     return api.post('/documents', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
