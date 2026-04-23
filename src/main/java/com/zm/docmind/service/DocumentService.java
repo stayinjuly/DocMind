@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +33,20 @@ import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metad
 public class DocumentService {
 
     private static final Set<String> SUPPORTED_TYPES = Set.of("txt", "md", "pdf", "docx", "doc", "xlsx", "xls", "csv");
+
+    /**
+     * 扩展名 -> 允许的 MIME 类型前缀映射，用于校验文件实际内容类型
+     */
+    private static final Map<String, Set<String>> EXTENSION_MIME_MAP = Map.of(
+            "txt", Set.of("text/plain"),
+            "md", Set.of("text/plain", "text/markdown"),
+            "pdf", Set.of("application/pdf"),
+            "docx", Set.of("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            "doc", Set.of("application/msword"),
+            "xlsx", Set.of("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            "xls", Set.of("application/vnd.ms-excel"),
+            "csv", Set.of("text/plain", "text/csv")
+    );
 
     @Value("${docmind.storage.max-file-size:10}")
     private int maxFileSize;
@@ -96,6 +111,17 @@ public class DocumentService {
         String extension = getFileExtension(originalFilename).toLowerCase();
         if (!SUPPORTED_TYPES.contains(extension)) {
             return DocumentUploadResponse.error("不支持的文件类型，仅支持 TXT、Markdown、PDF 和 Word 文件");
+        }
+
+        // 校验文件实际内容类型，防止伪装扩展名上传恶意文件
+        String contentType = file.getContentType();
+        Set<String> allowedMimes = EXTENSION_MIME_MAP.get(extension);
+        if (contentType != null && allowedMimes != null) {
+            boolean mimeMatched = allowedMimes.stream().anyMatch(contentType::startsWith);
+            if (!mimeMatched) {
+                log.warn("文件内容类型不匹配: 扩展名={}, Content-Type={}, 文件名={}", extension, contentType, originalFilename);
+                return DocumentUploadResponse.error("文件内容类型与扩展名不匹配，请检查文件是否合法");
+            }
         }
 
         Path filePath = null;

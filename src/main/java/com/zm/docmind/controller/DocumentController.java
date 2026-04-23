@@ -1,8 +1,10 @@
 package com.zm.docmind.controller;
 
 import com.zm.docmind.dto.DocumentUploadResponse;
+import com.zm.docmind.dto.DocumentVO;
 import com.zm.docmind.entity.Document;
 import com.zm.docmind.service.DocumentService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -28,16 +30,20 @@ public class DocumentController {
      * 获取当前用户的文档列表
      */
     @GetMapping
-    public List<Document> listDocuments(@AuthenticationPrincipal String email) {
-        return documentService.getDocumentsByUser(email);
+    public List<DocumentVO> listDocuments(@AuthenticationPrincipal String email) {
+        return documentService.getDocumentsByUser(email).stream()
+                .map(DocumentVO::from)
+                .toList();
     }
 
     /**
      * 获取所有公共文档列表
      */
     @GetMapping("/public")
-    public List<Document> listPublicDocuments() {
-        return documentService.getPublicDocuments();
+    public List<DocumentVO> listPublicDocuments() {
+        return documentService.getPublicDocuments().stream()
+                .map(DocumentVO::from)
+                .toList();
     }
 
     /**
@@ -70,7 +76,7 @@ public class DocumentController {
             return ResponseEntity.notFound().build();
         }
         if (!email.equals(document.getUserId())) {
-            return ResponseEntity.status(403).body("无权删除他人的文档");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("无权删除他人的文档");
         }
         documentService.deleteDocument(id);
         return ResponseEntity.ok("文档删除成功");
@@ -81,15 +87,15 @@ public class DocumentController {
      * @param id 文档ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<Document> getDocument(@PathVariable String id,
+    public ResponseEntity<DocumentVO> getDocument(@PathVariable String id,
                                                  @AuthenticationPrincipal String email) {
         Document document = documentService.getDocument(id);
         if (document == null) {
             return ResponseEntity.notFound().build();
         }
         if (!email.equals(document.getUserId())) {
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        return ResponseEntity.ok(document);
+        return ResponseEntity.ok(DocumentVO.from(document));
     }
 }
