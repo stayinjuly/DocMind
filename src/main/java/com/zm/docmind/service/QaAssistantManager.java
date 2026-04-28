@@ -12,6 +12,8 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.filter.Filter;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -23,6 +25,7 @@ import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metad
  * QaAssistant 管理器，负责为每个用户创建隔离的 AI 服务实例
  * 每个用户的检索范围：自己的文档 + 所有公共文档
  */
+@Slf4j
 @Component
 public class QaAssistantManager {
 
@@ -33,8 +36,10 @@ public class QaAssistantManager {
     private final ChatMemoryStore chatMemoryStore;
 
     private final Map<String, QaAssistant> assistantCache = new ConcurrentHashMap<>();
+    private final Map<String, Long> lastAccessTime = new ConcurrentHashMap<>();
 
     private static final int MAX_MESSAGES = 10;
+    private static final long EVICTION_THRESHOLD_MS = 30 * 60 * 1000;
 
     public QaAssistantManager(ChatModel chatModel,
                               StreamingChatModel streamingChatModel,
@@ -48,6 +53,7 @@ public class QaAssistantManager {
     }
 
     public QaAssistant getAssistant(String userId) {
+        lastAccessTime.put(userId, System.currentTimeMillis());
         return assistantCache.computeIfAbsent(userId, this::createAssistant);
     }
 
@@ -58,7 +64,6 @@ public class QaAssistantManager {
                 .chatMemoryStore(chatMemoryStore)
                 .build();
 
-        // 用户隔离 Filter: 检索自己的文档 + 所有公共文档
         Filter filter = metadataKey("userId").isEqualTo(userId)
                 .or(metadataKey("isPublic").isEqualTo("true"));
 
@@ -81,5 +86,20 @@ public class QaAssistantManager {
     public void clearUserHistory(String userId) {
         chatMemoryStore.deleteMessages(userId);
         assistantCache.remove(userId);
+        lastAccessTime.remove(userId);
+    }
+
+    @Scheduled(fixedRate = 5 * 60 * 1000)
+    public void evictInactiveAssistants() {
+        long now = System.currentTimeMillis();
+        lastAccessTime.entrySet().removeIf(entry -> {
+            if (now - entry.getValue() > EVICTION_THRESHOLD_MS) {
+                assistantCache.remove(entry.getKey());
+                chatMemoryStore.deleteMessages(entry.getKey());
+                log.info("淘汰不活跃用户 assistant: userId={}", entry.getKey());
+                return true;
+            }
+            return false;
+        });
     }
 }

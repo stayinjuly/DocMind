@@ -17,15 +17,8 @@ import java.nio.file.Path;
 @Service
 public class DocumentParserService {
 
-    private final DocumentParser tikaParser = new ApacheTikaDocumentParser();
-
-    /**
-     * 解析文档文件，提取纯文本内容
-     *
-     * @param filePath  文件路径
-     * @return 提取的文本内容
-     */
     public String parseDocument(Path filePath) {
+        DocumentParser tikaParser = new ApacheTikaDocumentParser();
         try (InputStream inputStream = Files.newInputStream(filePath)) {
             Document document = tikaParser.parse(inputStream);
             String text = document.text();
