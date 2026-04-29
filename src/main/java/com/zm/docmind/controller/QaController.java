@@ -39,7 +39,7 @@ public class QaController {
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamAsk(@AuthenticationPrincipal String email,
                                 @RequestParam String question) {
-        SseEmitter emitter = new SseEmitter(60000L);
+        SseEmitter emitter = new SseEmitter(120000L);
         QaAssistant assistant = assistantManager.getAssistant(email);
 
         assistant.stream(question)

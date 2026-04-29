@@ -13,6 +13,7 @@ import dev.langchain4j.store.embedding.filter.Filter;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -41,15 +42,22 @@ public class QaAssistantManager {
     private static final int MAX_MESSAGES = 10;
     private static final long EVICTION_THRESHOLD_MS = 30 * 60 * 1000;
 
+    private final int maxResults;
+    private final double minScore;
+
     public QaAssistantManager(ChatModel chatModel,
                               StreamingChatModel streamingChatModel,
                               EmbeddingStore<TextSegment> embeddingStore,
-                              EmbeddingModel embeddingModel) {
+                              EmbeddingModel embeddingModel,
+                              @Value("${docmind.rag.max-results:5}") int maxResults,
+                              @Value("${docmind.rag.min-score:0.6}") double minScore) {
         this.chatModel = chatModel;
         this.streamingChatModel = streamingChatModel;
         this.embeddingStore = embeddingStore;
         this.embeddingModel = embeddingModel;
         this.chatMemoryStore = new InMemoryChatMemoryStore();
+        this.maxResults = maxResults;
+        this.minScore = minScore;
     }
 
     public QaAssistant getAssistant(String userId) {
@@ -71,8 +79,8 @@ public class QaAssistantManager {
                 .embeddingStore(embeddingStore)
                 .embeddingModel(embeddingModel)
                 .filter(filter)
-                .maxResults(5)
-                .minScore(0.6)
+                .maxResults(maxResults)
+                .minScore(minScore)
                 .build();
 
         return AiServices.builder(QaAssistant.class)

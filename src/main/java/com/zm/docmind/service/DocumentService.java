@@ -13,8 +13,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import dev.langchain4j.data.document.DocumentSplitter;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
+
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -53,6 +55,12 @@ public class DocumentService {
 
     @Value("${docmind.storage.path}")
     private String storagePath;
+
+    @Value("${docmind.rag.chunk-size:500}")
+    private int chunkSize;
+
+    @Value("${docmind.rag.chunk-overlap:100}")
+    private int chunkOverlap;
 
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
@@ -148,7 +156,7 @@ public class DocumentService {
             // 先保存文档元数据，确保数据入库
             documentRepository.save(document);
 
-            int chunkCount = embedDocument(documentId, content, userId, isPublic);
+            int chunkCount = embedDocument(documentId, content, originalFilename, userId, isPublic);
             document.setChunkCount(chunkCount);
             document.setNewEntity(false);
             documentRepository.save(document);
@@ -198,48 +206,31 @@ public class DocumentService {
         return filePath;
     }
 
-    private int embedDocument(String documentId, String content, String userId, boolean isPublic) {
-        List<String> rawChunks = splitIntoChunks(content, 500);
-        List<TextSegment> segments = new ArrayList<>();
+    private int embedDocument(String documentId, String content, String documentName, String userId, boolean isPublic) {
+        DocumentSplitter splitter = DocumentSplitters.recursive(chunkSize, chunkOverlap);
 
-        for (String chunk : rawChunks) {
-            if (chunk.trim().isEmpty()) {
+        dev.langchain4j.data.document.Document langchainDoc = dev.langchain4j.data.document.Document.from(content);
+        List<TextSegment> rawSegments = splitter.split(langchainDoc);
+
+        List<TextSegment> segments = new ArrayList<>();
+        for (TextSegment raw : rawSegments) {
+            if (raw.text().trim().isEmpty()) {
                 continue;
             }
-
             dev.langchain4j.data.document.Metadata metadata = new dev.langchain4j.data.document.Metadata();
             metadata.put("userId", userId);
             metadata.put("documentId", documentId);
+            metadata.put("documentName", documentName);
             metadata.put("isPublic", String.valueOf(isPublic));
 
-            segments.add(new TextSegment(chunk, metadata));
+            segments.add(new TextSegment(raw.text(), metadata));
         }
 
         List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
         embeddingStore.addAll(embeddings, segments);
 
-        log.info("文档向量化完成: {}, 共 {} 个分块", documentId, segments.size());
+        log.info("文档向量化完成: {}, 共 {} 个分块 (chunkSize={}, overlap={})", documentId, segments.size(), chunkSize, chunkOverlap);
         return segments.size();
-    }
-
-    private List<String> splitIntoChunks(String text, int maxChunkSize) {
-        List<String> chunks = new ArrayList<>();
-        String[] paragraphs = text.split("\n\n");
-
-        StringBuilder currentChunk = new StringBuilder();
-        for (String paragraph : paragraphs) {
-            if (currentChunk.length() + paragraph.length() > maxChunkSize && !currentChunk.isEmpty()) {
-                chunks.add(currentChunk.toString().trim());
-                currentChunk = new StringBuilder();
-            }
-            currentChunk.append(paragraph).append("\n\n");
-        }
-
-        if (!currentChunk.isEmpty()) {
-            chunks.add(currentChunk.toString().trim());
-        }
-
-        return chunks;
     }
 
     private String getFileExtension(String filename) {
