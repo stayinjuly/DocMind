@@ -2,6 +2,7 @@ package com.zm.docmind.controller;
 
 import com.zm.docmind.service.QaAssistant;
 import com.zm.docmind.service.QaAssistantManager;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +10,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 
+@Slf4j
 @RestController
 @RequestMapping("/qa")
 public class QaController {
@@ -19,11 +21,6 @@ public class QaController {
         this.assistantManager = assistantManager;
     }
 
-    /**
-     * 问答接口（支持用户隔离）
-     * @param email 当前登录用户邮箱（从 JWT 令牌中提取）
-     * @param question 用户问题
-     */
     @GetMapping
     public String ask(@AuthenticationPrincipal String email,
                       @RequestParam String question) {
@@ -31,15 +28,19 @@ public class QaController {
         return assistant.answer(question);
     }
 
-    /**
-     * 流式问答接口（SSE）
-     * @param email 当前登录用户邮箱（从 JWT 令牌中提取）
-     * @param question 用户问题
-     */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamAsk(@AuthenticationPrincipal String email,
                                 @RequestParam String question) {
         SseEmitter emitter = new SseEmitter(120000L);
+
+        emitter.onTimeout(() -> {
+            log.warn("SSE 连接超时, 用户: {}", email);
+            emitter.complete();
+        });
+        emitter.onCompletion(() -> {
+            log.debug("SSE 连接关闭, 用户: {}", email);
+        });
+
         QaAssistant assistant = assistantManager.getAssistant(email);
 
         assistant.stream(question)
@@ -59,11 +60,12 @@ public class QaController {
                     }
                 })
                 .onError(e -> {
+                    log.error("流式问答出错, 用户: {}", email, e);
                     try {
                         emitter.send(SseEmitter.event().data("[ERROR] " + e.getMessage()));
-                        emitter.complete();
-                    } catch (IOException ignored) {
                         emitter.completeWithError(e);
+                    } catch (IOException ignored) {
+                        // 发送失败说明客户端已断开，无需处理
                     }
                 })
                 .start();

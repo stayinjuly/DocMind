@@ -40,7 +40,7 @@ async function handleUpload(options: { raw: File }) {
     const result = response.data as UploadResponse
 
     if (result.success) {
-      ElMessage.success('文档上传成功')
+      ElMessage.success('文档上传成功，正在后台处理中...')
       loadDocuments()
     } else {
       ElMessage.error(result.message)
@@ -113,6 +113,15 @@ function formatDate(dateStr: string): string {
       <el-table-column prop="size" label="大小" width="100">
         <template #default="{ row }">
           {{ formatSize(row.size) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="120">
+        <template #default="{ row }">
+          <el-tag v-if="row.status === 'COMPLETED'" type="success" size="small">已完成</el-tag>
+          <el-tag v-else-if="row.status === 'PROCESSING'" type="warning" size="small">处理中</el-tag>
+          <el-tag v-else-if="row.status === 'PENDING'" type="info" size="small">待处理</el-tag>
+          <el-tag v-else-if="row.status === 'FAILED'" type="danger" size="small">失败</el-tag>
+          <el-tag v-else size="small">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="uploadTime" label="上传时间" width="180">

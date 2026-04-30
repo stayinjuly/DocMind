@@ -10,6 +10,7 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -139,9 +140,6 @@ public class DocumentService {
             documentId = UUID.randomUUID().toString();
             filePath = saveFile(file, documentId, extension);
 
-            // 使用 Tika 解析文档提取文本
-            String content = documentParserService.parseDocument(filePath);
-
             Document document = Document.builder()
                     .id(documentId)
                     .name(originalFilename)
@@ -151,26 +149,63 @@ public class DocumentService {
                     .isPublic(isPublic)
                     .uploadTime(LocalDateTime.now())
                     .userId(userId)
+                    .status("PENDING")
                     .build();
 
-            // 先保存文档元数据，确保数据入库
             documentRepository.save(document);
 
-            int chunkCount = embedDocument(documentId, content, originalFilename, userId, isPublic);
-            document.setChunkCount(chunkCount);
-            document.setNewEntity(false);
-            documentRepository.save(document);
+            // 异步执行文档解析和向量化，立即返回响应
+            processDocumentAsync(documentId, filePath, originalFilename, userId, isPublic);
 
-            log.info("文档上传成功: {} ({}), 用户: {}, 公开: {}", originalFilename, documentId, userId, isPublic);
+            log.info("文档上传已接受: {} ({}), 用户: {}, 公开: {}", originalFilename, documentId, userId, isPublic);
             return DocumentUploadResponse.success(documentId);
 
         } catch (Exception e) {
-            log.error("文档处理失败: {}", originalFilename, e);
+            log.error("文档上传失败: {}", originalFilename, e);
             cleanupOnFailure(documentId, filePath);
-            if (e instanceof RuntimeException rt && rt.getMessage() != null && rt.getMessage().startsWith("文档解析失败")) {
-                return DocumentUploadResponse.error("文档解析失败，请检查文件是否损坏");
+            return DocumentUploadResponse.error("文档上传失败: " + e.getMessage());
+        }
+    }
+
+    @Async
+    public void processDocumentAsync(String documentId, Path filePath, String documentName, String userId, boolean isPublic) {
+        try {
+            updateDocumentStatus(documentId, "PROCESSING");
+
+            String content = documentParserService.parseDocument(filePath);
+            int chunkCount = embedDocument(documentId, content, documentName, userId, isPublic);
+
+            Document doc = documentRepository.findById(documentId).orElse(null);
+            if (doc != null) {
+                doc.setChunkCount(chunkCount);
+                doc.setStatus("COMPLETED");
+                doc.setNewEntity(false);
+                documentRepository.save(doc);
             }
-            return DocumentUploadResponse.error("文档处理失败: " + e.getMessage());
+
+            log.info("文档处理完成: {} ({}), 分块数: {}", documentName, documentId, chunkCount);
+
+        } catch (Exception e) {
+            log.error("文档异步处理失败: {} ({})", documentName, documentId, e);
+            updateDocumentStatus(documentId, "FAILED");
+            // 处理失败时清理已保存的文件和向量
+            Document doc = documentRepository.findById(documentId).orElse(null);
+            cleanupOnFailure(documentId, filePath);
+            // 保留元数据记录但标记为失败，让用户能看到失败状态
+            if (doc != null) {
+                doc.setStatus("FAILED");
+                doc.setNewEntity(false);
+                documentRepository.save(doc);
+            }
+        }
+    }
+
+    private void updateDocumentStatus(String documentId, String status) {
+        Document doc = documentRepository.findById(documentId).orElse(null);
+        if (doc != null) {
+            doc.setStatus(status);
+            doc.setNewEntity(false);
+            documentRepository.save(doc);
         }
     }
 

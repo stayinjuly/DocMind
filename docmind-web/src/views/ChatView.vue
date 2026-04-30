@@ -31,6 +31,12 @@ async function sendMessage() {
       loading.value = false
       return
     }
+    if (event.data.startsWith('[ERROR] ')) {
+      messages.value[assistantIndex].content = '抱歉，发生了错误：' + event.data.substring(8)
+      eventSource.close()
+      loading.value = false
+      return
+    }
     messages.value[assistantIndex].content += event.data
     scrollToBottom()
   }

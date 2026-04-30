@@ -3,7 +3,9 @@ export interface Document {
   name: string
   type: string
   size: number
-  filePath: string
+  isPublic: boolean
+  chunkCount: number
+  status: string
   uploadTime: string
   userId: string
 }

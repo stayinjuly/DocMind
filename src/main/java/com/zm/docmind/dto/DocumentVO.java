@@ -18,6 +18,7 @@ public class DocumentVO {
     private long size;
     private boolean isPublic;
     private int chunkCount;
+    private String status;
     private LocalDateTime uploadTime;
     private String userId;
 
@@ -29,6 +30,7 @@ public class DocumentVO {
                 .size(doc.getSize())
                 .isPublic(doc.isPublic())
                 .chunkCount(doc.getChunkCount())
+                .status(doc.getStatus())
                 .uploadTime(doc.getUploadTime())
                 .userId(doc.getUserId())
                 .build();
