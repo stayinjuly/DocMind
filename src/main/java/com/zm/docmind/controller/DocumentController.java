@@ -1,20 +1,20 @@
 package com.zm.docmind.controller;
 
+import com.zm.docmind.dto.ApiResponse;
 import com.zm.docmind.dto.DocumentUploadResponse;
 import com.zm.docmind.dto.DocumentVO;
 import com.zm.docmind.entity.Document;
 import com.zm.docmind.service.DocumentService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-
 /**
  * 文档管理控制器
- * 提供文档上传、列表、删除等 API，所有操作均基于当前登录用户隔离
  */
 @RestController
 @RequestMapping("/documents")
@@ -26,76 +26,68 @@ public class DocumentController {
         this.documentService = documentService;
     }
 
-    /**
-     * 获取当前用户的文档列表
-     */
     @GetMapping
-    public List<DocumentVO> listDocuments(@AuthenticationPrincipal String email) {
-        return documentService.getDocumentsByUser(email).stream()
-                .map(DocumentVO::from)
-                .toList();
+    public ApiResponse<Page<DocumentVO>> listDocuments(
+            @AuthenticationPrincipal String email,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<DocumentVO> result = documentService.getDocumentsByUser(email, PageRequest.of(page, size))
+                .map(DocumentVO::from);
+        return ApiResponse.ok(result);
     }
 
-    /**
-     * 获取所有公共文档列表
-     */
     @GetMapping("/public")
-    public List<DocumentVO> listPublicDocuments() {
-        return documentService.getPublicDocuments().stream()
-                .map(DocumentVO::from)
-                .toList();
+    public ApiResponse<Page<DocumentVO>> listPublicDocuments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<DocumentVO> result = documentService.getPublicDocuments(PageRequest.of(page, size))
+                .map(DocumentVO::from);
+        return ApiResponse.ok(result);
     }
 
-    /**
-     * 上传文档
-     * @param file 文档文件（TXT/Markdown/PDF/Word）
-     * @param isPublic 是否公开（默认 false）
-     * @param email 当前登录用户邮箱（从 JWT 令牌中提取）
-     */
     @PostMapping
-    public ResponseEntity<DocumentUploadResponse> uploadDocument(
+    public ResponseEntity<ApiResponse<DocumentUploadResponse>> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "isPublic", defaultValue = "false") boolean isPublic,
             @AuthenticationPrincipal String email) {
         DocumentUploadResponse response = documentService.uploadDocument(file, email, isPublic);
         if (response.isSuccess()) {
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(ApiResponse.ok("文档上传成功", response));
         }
-        return ResponseEntity.badRequest().body(response);
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(response.getMessage()));
     }
 
-    /**
-     * 删除文档（仅允许删除自己的文档）
-     * @param id 文档ID
-     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteDocument(@PathVariable String id,
-                                                  @AuthenticationPrincipal String email) {
-        Document document = documentService.getDocument(id);
-        if (document == null) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<ApiResponse<Void>> deleteDocument(@PathVariable String id,
+                                                             @AuthenticationPrincipal String email) {
+        var doc = documentService.getDocument(id);
+        if (doc.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("文档不存在"));
         }
+        Document document = doc.get();
         if (!email.equals(document.getUserId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("无权删除他人的文档");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("无权删除他人的文档"));
         }
         documentService.deleteDocument(id);
-        return ResponseEntity.ok("文档删除成功");
+        return ResponseEntity.ok(ApiResponse.ok("文档删除成功", null));
     }
 
-    /**
-     * 获取单个文档信息（仅允许查看自己的文档）
-     * @param id 文档ID
-     */
     @GetMapping("/{id}")
-    public ResponseEntity<DocumentVO> getDocument(@PathVariable String id,
-                                                 @AuthenticationPrincipal String email) {
-        Document document = documentService.getDocument(id);
-        if (document == null) {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<ApiResponse<DocumentVO>> getDocument(@PathVariable String id,
+                                                                 @AuthenticationPrincipal String email) {
+        var doc = documentService.getDocument(id);
+        if (doc.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("文档不存在"));
         }
+        Document document = doc.get();
         if (!email.equals(document.getUserId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("无权查看他人的文档"));
         }
-        return ResponseEntity.ok(DocumentVO.from(document));
+        return ResponseEntity.ok(ApiResponse.ok(DocumentVO.from(document)));
     }
 }

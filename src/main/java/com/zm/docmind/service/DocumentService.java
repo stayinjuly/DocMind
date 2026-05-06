@@ -17,6 +17,9 @@ import org.springframework.web.multipart.MultipartFile;
 import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -86,25 +89,20 @@ public class DocumentService {
             log.info("文档存储目录初始化完成: {}", storagePath);
         } catch (IOException e) {
             log.error("创建文档存储目录失败: {}", storagePath, e);
+            throw new IllegalStateException("创建文档存储目录失败: " + storagePath, e);
         }
     }
 
-    public List<Document> getAllDocuments() {
-        List<Document> docs = new ArrayList<>();
-        documentRepository.findAll().forEach(docs::add);
-        return docs;
+    public Page<Document> getDocumentsByUser(String userId, Pageable pageable) {
+        return documentRepository.findByUserId(userId, pageable);
     }
 
-    public List<Document> getDocumentsByUser(String userId) {
-        return documentRepository.findByUserId(userId);
+    public Page<Document> getPublicDocuments(Pageable pageable) {
+        return documentRepository.findByIsPublicTrue(pageable);
     }
 
-    public List<Document> getPublicDocuments() {
-        return documentRepository.findByIsPublicTrue();
-    }
-
-    public Document getDocument(String id) {
-        return documentRepository.findById(id).orElse(null);
+    public Optional<Document> getDocument(String id) {
+        return documentRepository.findById(id);
     }
 
     public DocumentUploadResponse uploadDocument(MultipartFile file, String userId, boolean isPublic) {
@@ -113,7 +111,7 @@ public class DocumentService {
             return DocumentUploadResponse.error("文件名无效");
         }
 
-        if (file.getSize() > (long) maxFileSize * 1_000_000) {
+        if (file.getSize() > (long) maxFileSize * 1024 * 1024) {
             return DocumentUploadResponse.error("文件过大，最大支持 " + maxFileSize + "MB");
         }
 

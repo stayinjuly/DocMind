@@ -1,7 +1,10 @@
 package com.zm.docmind.controller;
 
+import com.zm.docmind.dto.ApiResponse;
+import com.zm.docmind.dto.QaRequest;
 import com.zm.docmind.service.QaAssistant;
 import com.zm.docmind.service.QaAssistantManager;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,16 +24,17 @@ public class QaController {
         this.assistantManager = assistantManager;
     }
 
-    @GetMapping
-    public String ask(@AuthenticationPrincipal String email,
-                      @RequestParam String question) {
+    @PostMapping
+    public ApiResponse<String> ask(@AuthenticationPrincipal String email,
+                                    @Valid @RequestBody QaRequest request) {
         QaAssistant assistant = assistantManager.getAssistant(email);
-        return assistant.answer(question);
+        String answer = assistant.answer(request.getQuestion());
+        return ApiResponse.ok(answer);
     }
 
-    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamAsk(@AuthenticationPrincipal String email,
-                                @RequestParam String question) {
+                                @Valid @RequestBody QaRequest request) {
         SseEmitter emitter = new SseEmitter(120000L);
 
         emitter.onTimeout(() -> {
@@ -43,7 +47,7 @@ public class QaController {
 
         QaAssistant assistant = assistantManager.getAssistant(email);
 
-        assistant.stream(question)
+        assistant.stream(request.getQuestion())
                 .onPartialResponse(token -> {
                     try {
                         emitter.send(SseEmitter.event().data(token));
@@ -62,7 +66,7 @@ public class QaController {
                 .onError(e -> {
                     log.error("流式问答出错, 用户: {}", email, e);
                     try {
-                        emitter.send(SseEmitter.event().data("[ERROR] " + e.getMessage()));
+                        emitter.send(SseEmitter.event().data("[ERROR] 问答服务暂时不可用"));
                         emitter.completeWithError(e);
                     } catch (IOException ignored) {
                         // 发送失败说明客户端已断开，无需处理
@@ -73,12 +77,9 @@ public class QaController {
         return emitter;
     }
 
-    /**
-     * 清除当前用户对话历史
-     */
     @DeleteMapping("/history")
-    public String clearHistory(@AuthenticationPrincipal String email) {
+    public ApiResponse<Void> clearHistory(@AuthenticationPrincipal String email) {
         assistantManager.clearUserHistory(email);
-        return "对话历史已清除";
+        return ApiResponse.ok("对话历史已清除", null);
     }
 }
