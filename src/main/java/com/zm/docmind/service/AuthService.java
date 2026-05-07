@@ -37,7 +37,8 @@ public class AuthService {
         if (email == null || email.trim().isEmpty()) {
             throw new IllegalArgumentException("邮箱不能为空");
         }
-        if (!EMAIL_PATTERN.matcher(email.trim()).matches()) {
+        email = email.trim().toLowerCase();
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new IllegalArgumentException("邮箱格式不正确");
         }
         if (rawPassword == null || rawPassword.length() < 6) {
@@ -62,6 +63,7 @@ public class AuthService {
      * 用户登录
      */
     public AuthResponse login(String email, String rawPassword) {
+        email = email.trim().toLowerCase();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("邮箱或密码错误"));
 

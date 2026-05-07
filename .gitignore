@@ -37,5 +37,8 @@ build/
 .env.local
 .env-*-local
 
+### MCP config (contains credentials) ###
+.mcp.json
+
 ### Local storage ###
 docmind-storage/

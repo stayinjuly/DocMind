@@ -84,7 +84,7 @@ public class DocumentController {
                     .body(ApiResponse.error("文档不存在"));
         }
         Document document = doc.get();
-        if (!email.equals(document.getUserId())) {
+        if (!document.isPublic() && !email.equals(document.getUserId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("无权查看他人的文档"));
         }
