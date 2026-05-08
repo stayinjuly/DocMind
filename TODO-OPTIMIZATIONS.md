@@ -4,17 +4,17 @@
 
 ## 一、资源管理与稳定性
 
-### 1. 自定义异步线程池
+### ~~1. 自定义异步线程池~~ ✅ 已完成
 - **文件**: `DocumentProcessingService.java`
 - **问题**: `@Async` 使用默认 `SimpleAsyncTaskExecutor`，无上限线程创建，高并发上传会耗尽资源
 - **方案**: 注册自定义 `ThreadPoolTaskExecutor` Bean，设置 corePoolSize=2, maxPoolSize=5, queueCapacity=50
 
-### 2. QaAssistantManager 缓存无上限
+### ~~2. QaAssistantManager 缓存无上限~~ ✅ 已完成
 - **文件**: `QaAssistantManager.java:39-40`
 - **问题**: `ConcurrentHashMap` 无容量限制，大量用户涌入可能 OOM
 - **方案**: 用 Caffeine 替代，设置 `maximumSize(200)` 和 `expireAfterAccess(30min)`
 
-### 3. Tika 解析器每次调用重新创建
+### ~~3. Tika 解析器每次调用重新创建~~ ✅ 已完成
 - **文件**: `DocumentParserService.java:21`
 - **问题**: `ApacheTikaDocumentParser` 是重量级对象，每次 `parseDocument` 都 new 一个
 - **方案**: 提升为类字段，构造时初始化一次

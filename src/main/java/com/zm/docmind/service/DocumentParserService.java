@@ -17,8 +17,9 @@ import java.nio.file.Path;
 @Service
 public class DocumentParserService {
 
+    private final DocumentParser tikaParser = new ApacheTikaDocumentParser();
+
     public String parseDocument(Path filePath) {
-        DocumentParser tikaParser = new ApacheTikaDocumentParser();
         try (InputStream inputStream = Files.newInputStream(filePath)) {
             Document document = tikaParser.parse(inputStream);
             String text = document.text();

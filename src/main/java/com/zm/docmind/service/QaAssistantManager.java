@@ -1,5 +1,8 @@
 package com.zm.docmind.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
@@ -14,11 +17,9 @@ import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
 
 import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metadataKey;
 
@@ -35,12 +36,9 @@ public class QaAssistantManager {
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
     private final ChatMemoryStore chatMemoryStore;
-
-    private final Map<String, QaAssistant> assistantCache = new ConcurrentHashMap<>();
-    private final Map<String, Long> lastAccessTime = new ConcurrentHashMap<>();
+    private final Cache<String, QaAssistant> assistantCache;
 
     private static final int MAX_MESSAGES = 10;
-    private static final long EVICTION_THRESHOLD_MS = 30 * 60 * 1000;
 
     private final int maxResults;
     private final double minScore;
@@ -58,11 +56,20 @@ public class QaAssistantManager {
         this.chatMemoryStore = new InMemoryChatMemoryStore();
         this.maxResults = maxResults;
         this.minScore = minScore;
+        this.assistantCache = Caffeine.newBuilder()
+                .maximumSize(200)
+                .expireAfterAccess(Duration.ofMinutes(30))
+                .removalListener((String key, QaAssistant value, RemovalCause cause) -> {
+                    if (key != null && cause.wasEvicted()) {
+                        chatMemoryStore.deleteMessages(key);
+                        log.info("Caffeine 淘汰不活跃用户 assistant: userId={}, cause={}", key, cause);
+                    }
+                })
+                .build();
     }
 
     public QaAssistant getAssistant(String userId) {
-        lastAccessTime.put(userId, System.currentTimeMillis());
-        return assistantCache.computeIfAbsent(userId, this::createAssistant);
+        return assistantCache.get(userId, this::createAssistant);
     }
 
     private QaAssistant createAssistant(String userId) {
@@ -92,22 +99,7 @@ public class QaAssistantManager {
     }
 
     public void clearUserHistory(String userId) {
+        assistantCache.invalidate(userId);
         chatMemoryStore.deleteMessages(userId);
-        assistantCache.remove(userId);
-        lastAccessTime.remove(userId);
-    }
-
-    @Scheduled(fixedRate = 5 * 60 * 1000)
-    public void evictInactiveAssistants() {
-        long now = System.currentTimeMillis();
-        lastAccessTime.entrySet().removeIf(entry -> {
-            if (now - entry.getValue() > EVICTION_THRESHOLD_MS) {
-                assistantCache.remove(entry.getKey());
-                chatMemoryStore.deleteMessages(entry.getKey());
-                log.info("淘汰不活跃用户 assistant: userId={}", entry.getKey());
-                return true;
-            }
-            return false;
-        });
     }
 }
