@@ -13,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.security.access.AccessDeniedException;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -87,6 +89,34 @@ public class DocumentService {
 
     public Optional<Document> getDocument(String id) {
         return documentRepository.findById(id);
+    }
+
+    /**
+     * 获取文档并校验用户所有权，公开文档所有人可访问
+     *
+     * @return 文档对象，如果无权限则抛出 AccessDeniedException
+     * @throws AccessDeniedException 文档不属于该用户且非公开
+     * @throws NoSuchElementException 文档不存在
+     */
+    public Document getDocumentForUser(String id, String userId) {
+        Document document = documentRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("文档不存在"));
+        if (!document.isPublic() && !userId.equals(document.getUserId())) {
+            throw new AccessDeniedException("无权访问他人的文档");
+        }
+        return document;
+    }
+
+    /**
+     * 获取文档并校验用户所有权（仅限所有者）
+     */
+    public Document getOwnedDocument(String id, String userId) {
+        Document document = documentRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("文档不存在"));
+        if (!userId.equals(document.getUserId())) {
+            throw new AccessDeniedException("无权操作他人的文档");
+        }
+        return document;
     }
 
     public DocumentUploadResponse uploadDocument(MultipartFile file, String userId, boolean isPublic) {
