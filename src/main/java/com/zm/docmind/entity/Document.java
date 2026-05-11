@@ -55,9 +55,9 @@ public class Document implements Persistable<String> {
     private int chunkCount;
 
     /**
-     * 处理状态：PENDING(待处理)、PROCESSING(处理中)、COMPLETED(完成)、FAILED(失败)
+     * 处理状态
      */
-    private String status;
+    private DocumentStatus status;
 
     /**
      * 上传时间

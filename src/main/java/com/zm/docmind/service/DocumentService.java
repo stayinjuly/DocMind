@@ -1,6 +1,7 @@
 package com.zm.docmind.service;
 
 import com.zm.docmind.entity.Document;
+import com.zm.docmind.entity.DocumentStatus;
 import com.zm.docmind.dto.DocumentUploadResponse;
 import com.zm.docmind.repository.DocumentRepository;
 import dev.langchain4j.data.segment.TextSegment;
@@ -161,7 +162,7 @@ public class DocumentService {
                     .isPublic(isPublic)
                     .uploadTime(LocalDateTime.now())
                     .userId(userId)
-                    .status("PENDING")
+                    .status(DocumentStatus.PENDING)
                     .build();
 
             documentRepository.save(document);

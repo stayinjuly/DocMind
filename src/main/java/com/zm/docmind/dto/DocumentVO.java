@@ -1,6 +1,7 @@
 package com.zm.docmind.dto;
 
 import com.zm.docmind.entity.Document;
+import com.zm.docmind.entity.DocumentStatus;
 import lombok.Builder;
 import lombok.Data;
 
@@ -18,7 +19,7 @@ public class DocumentVO {
     private long size;
     private boolean isPublic;
     private int chunkCount;
-    private String status;
+    private DocumentStatus status;
     private LocalDateTime uploadTime;
     private String userId;
 

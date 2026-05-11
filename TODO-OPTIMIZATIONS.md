@@ -21,12 +21,12 @@
 
 ## 二、代码质量
 
-### 4. 提取文档所有权检查逻辑
+### ~~4. 提取文档所有权检查逻辑~~ ✅ 已完成
 - **文件**: `DocumentController.java:62-76, 78-92`
 - **问题**: `deleteDocument` 和 `getDocument` 有重复的所有权检查代码
 - **方案**: 在 `DocumentService` 中新增 `getDocumentForUser(id, userId)` 方法
 
-### 5. Document 状态字段用枚举替代字符串
+### ~~5. Document 状态字段用枚举替代字符串~~ ✅ 已完成
 - **文件**: `DocumentService.java`, `DocumentProcessingService.java` 多处
 - **问题**: "PENDING"/"PROCESSING"/"COMPLETED"/"FAILED" 散布为魔法字符串
 - **方案**: 创建 `DocumentStatus` 枚举

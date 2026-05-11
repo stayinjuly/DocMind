@@ -1,6 +1,7 @@
 package com.zm.docmind.service;
 
 import com.zm.docmind.entity.Document;
+import com.zm.docmind.entity.DocumentStatus;
 import com.zm.docmind.repository.DocumentRepository;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -51,7 +52,7 @@ public class DocumentProcessingService {
     @Async
     public void processDocumentAsync(String documentId, Path filePath, String documentName, String userId, boolean isPublic) {
         try {
-            updateDocumentStatus(documentId, "PROCESSING");
+            updateDocumentStatus(documentId, DocumentStatus.PROCESSING);
 
             String content = documentParserService.parseDocument(filePath);
             int chunkCount = embedDocument(documentId, content, documentName, userId, isPublic);
@@ -59,7 +60,7 @@ public class DocumentProcessingService {
             Document doc = documentRepository.findById(documentId).orElse(null);
             if (doc != null) {
                 doc.setChunkCount(chunkCount);
-                doc.setStatus("COMPLETED");
+                doc.setStatus(DocumentStatus.COMPLETED);
                 doc.setNewEntity(false);
                 documentRepository.save(doc);
             }
@@ -68,18 +69,18 @@ public class DocumentProcessingService {
 
         } catch (Exception e) {
             log.error("文档异步处理失败: {} ({})", documentName, documentId, e);
-            updateDocumentStatus(documentId, "FAILED");
+            updateDocumentStatus(documentId, DocumentStatus.FAILED);
             cleanupOnFailure(documentId, filePath);
             Document doc = documentRepository.findById(documentId).orElse(null);
             if (doc != null) {
-                doc.setStatus("FAILED");
+                doc.setStatus(DocumentStatus.FAILED);
                 doc.setNewEntity(false);
                 documentRepository.save(doc);
             }
         }
     }
 
-    private void updateDocumentStatus(String documentId, String status) {
+    private void updateDocumentStatus(String documentId, DocumentStatus status) {
         Document doc = documentRepository.findById(documentId).orElse(null);
         if (doc != null) {
             doc.setStatus(status);
