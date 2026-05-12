@@ -41,7 +41,7 @@
 - **问题**: `size` 无上限，客户端可传 `size=999999`
 - **方案**: 加 `@Max(100)` 校验或 Service 层 clamp
 
-### 8. JwtService 异常捕获范围过宽
+### ~~8. JwtService 异常捕获范围过宽~~ ✅ 已完成
 - **文件**: `JwtService.java:53-60`
 - **问题**: `isTokenValid` 捕获 `Exception`，包括 `NullPointerException` 等编程错误
 - **方案**: 缩窄为 `JwtException`
