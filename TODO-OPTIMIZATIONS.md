@@ -68,7 +68,7 @@
 - **问题**: `/auth/**` 和 `/qa/**` 无限流，易被暴力攻击和 API 滥用
 - **方案**: 引入 Bucket4j 或 Resilience4j
 
-### 14. HikariCP 连接池参数补全
+### ~~14. HikariCP 连接池参数补全~~ ✅ 已完成
 - **文件**: `application-pgsql.properties`
 - **问题**: 缺少 `leak-detection-threshold`、`connection-timeout` 等关键参数
 - **方案**: 补充推荐配置
