@@ -77,6 +77,6 @@
 - **问题**: 无 Dockerfile / docker-compose.yml
 - **方案**: 创建容器化部署配置
 
-### 16. 单元测试
+### ~~16. 单元测试~~ ✅ 已完成
 - **问题**: 仅有 context load 测试，无任何业务逻辑测试
 - **方案**: 为 `AuthService`、`JwtService`、`DocumentService`、`QaAssistantManager` 编写单元测试
