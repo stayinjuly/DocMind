@@ -4,11 +4,12 @@ DocMind 是一款基于 RAG（检索增强生成）技术的 AI 文档问答系�
 
 ## 功能特点
 
-- **文档管理** - 上传、解析、删除文档，支持 TXT / Markdown / PDF / Word 格式
+- **文档管理** - 上传、解析、删除文档，支持 TXT / Markdown / PDF / Word / Excel / CSV 格式
 - **智能问答** - 基于向量语义检索 + LLM 生成，提供上下文相关的准确回答
 - **流式输出** - 支持 SSE 流式问答，实时返回生成内容
 - **用户隔离** - JWT 认证，每个用户只能检索自己的文档和公共文档
 - **对话记忆** - 每用户独立对话历史，支持清除
+- **处理状态跟踪** - 文档处理状态：PENDING → PROCESSING → COMPLETED / FAILED
 - **多数据库** - 支持 PostgreSQL（生产）和 H2（开发）两种 Profile
 
 ## 技术栈
@@ -16,10 +17,10 @@ DocMind 是一款基于 RAG（检索增强生成）技术的 AI 文档问答系�
 ### 后端
 | 组件 | 技术 |
 |---|---|
-| 框架 | Spring Boot 4.0 |
-| AI 框架 | LangChain4j 1.12 |
-| LLM | MiniMax-M2.7（OpenAI 兼容接口） |
-| Embedding | 通义千问 text-embedding-v4（1024 维） |
+| 框架 | Spring Boot 4.0.4 |
+| AI 框架 | LangChain4j 1.12.2 |
+| LLM | Qwen3-Max（OpenAI 兼容接口，支持 MiniMax / DeepSeek / Moonshot 等） |
+| Embedding | 通义千问 text-embedding-v4（支持 DashScope / 智谱 / OpenAI 兼容接口） |
 | 向量存储 | PostgreSQL + pgvector |
 | 文档解析 | Apache Tika |
 | 认证 | Spring Security + JWT |
@@ -65,17 +66,17 @@ DocMind/
 ### 文档
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/documents` | 获取当前用户的文档列表 |
-| GET | `/documents/public` | 获取公共文档列表 |
-| GET | `/documents/{id}` | 获取文档详情 |
-| POST | `/documents` | 上传文档（multipart/form-data） |
-| DELETE | `/documents/{id}` | 删除文档 |
+| GET | `/documents?page=0&size=20` | 获取当前用户的文档列表（分页） |
+| GET | `/documents/public?page=0&size=20` | 获取公共文档列表（分页） |
+| GET | `/documents/{id}` | 获取文档详情（所有者或公共文档） |
+| POST | `/documents` | 上传文档（multipart: file + isPublic） |
+| DELETE | `/documents/{id}` | 删除文档（仅所有者） |
 
 ### 问答
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/qa?question=xxx` | 普通问答 |
-| GET | `/qa/stream?question=xxx` | 流式问答（SSE） |
+| POST | `/qa` | 普通问答（JSON body: `{"question": "xxx"}`） |
+| POST | `/qa/stream` | 流式问答 SSE（JSON body: `{"question": "xxx"}`） |
 | DELETE | `/qa/history` | 清除对话历史 |
 
 ## 数据库设计
@@ -95,30 +96,29 @@ DocMind/
 
 ### 配置
 
-修改 `application.properties` 中的相关配置：
+复制 `.env.example` 为 `.env` 并填写配置：
 
 ```properties
-# 数据库 Profile: pgsql（生产）或 h2（开发）
-spring.profiles.active=pgsql
+# 数据库
+DB_PASSWORD=your-db-password
 
-# LLM 配置
-openai.api-key=your-api-key
-openai.base-url=https://api.minimaxi.com/v1
-openai.model=MiniMax-M2.7
+# JWT
+JWT_SECRET=your-jwt-secret
 
-# Embedding 配置
-dashscope.api_key=your-dashscope-key
-dashscope.embedding-model=text-embedding-v4
+# Embedding（三选一）
+DASHSCOPE_API_KEY=your-dashscope-key
 
-# 文档存储路径
-docmind.storage.path=/path/to/your/docs
+# LLM（OpenAI 兼容接口）
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+OPENAI_MODEL=qwen3-max
 ```
 
 ### 运行
 
 ```bash
 # 后端
-mvn spring-boot:run
+./mvnw spring-boot:run
 
 # 前端
 cd docmind-web
