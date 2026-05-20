@@ -1,7 +1,9 @@
 import axios from 'axios'
-import type { Document, AuthRequest, AuthResponse } from './types'
+import type { Document, AuthResponse } from './types'
+import { useUserStore } from '../stores/user'
+import router from '../router'
 
-const API_BASE = 'http://localhost:8080'
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -10,9 +12,9 @@ const api = axios.create({
 
 // JWT 请求拦截器：自动在请求头中附加令牌
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  const userStore = useUserStore()
+  if (userStore.token) {
+    config.headers.Authorization = `Bearer ${userStore.token}`
   }
   return config
 })
@@ -25,9 +27,9 @@ api.interceptors.response.use(
       const url = error.config?.url || ''
       // 登录/注册接口的401不跳转，由页面自行处理错误提示
       if (!url.startsWith('/auth/')) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('email')
-        window.location.href = '/login'
+        const userStore = useUserStore()
+        userStore.logout()
+        router.push('/login')
       }
     }
     return Promise.reject(error)
@@ -36,10 +38,10 @@ api.interceptors.response.use(
 
 // 认证 API
 export const authApi = {
-  register: (data: AuthRequest) =>
+  register: (data: { email: string; password: string }) =>
     api.post<AuthResponse>('/auth/register', data),
 
-  login: (data: AuthRequest) =>
+  login: (data: { email: string; password: string }) =>
     api.post<AuthResponse>('/auth/login', data),
 }
 
@@ -62,7 +64,7 @@ export const documentApi = {
 // 问答 API
 export const qaApi = {
   ask: (question: string) =>
-    api.get('/qa', { params: { question } }),
+    api.post('/qa', { question }),
 
   clearHistory: () =>
     api.delete('/qa/history'),
@@ -70,8 +72,8 @@ export const qaApi = {
 
 // SSE 流式对话（通过查询参数传递令牌，因为 EventSource 不支持自定义请求头）
 export function createChatStream(question: string): EventSource {
-  const token = localStorage.getItem('token')
-  const url = `${API_BASE}/qa/stream?question=${encodeURIComponent(question)}&token=${encodeURIComponent(token || '')}`
+  const userStore = useUserStore()
+  const url = `${API_BASE}/qa/stream?question=${encodeURIComponent(question)}&token=${encodeURIComponent(userStore.token)}`
   return new EventSource(url)
 }
 

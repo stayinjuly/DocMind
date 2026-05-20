@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onUnmounted } from 'vue'
 import { createChatStream, qaApi } from '../api'
 import { ElMessage } from 'element-plus'
 import type { ChatMessage } from '../api/types'
@@ -8,12 +8,21 @@ const messages = ref<ChatMessage[]>([])
 const inputMessage = ref('')
 const loading = ref(false)
 const chatContainer = ref<HTMLElement | null>(null)
+let activeEventSource: EventSource | null = null
+
+onUnmounted(() => {
+  activeEventSource?.close()
+  activeEventSource = null
+})
 
 async function sendMessage() {
   const question = inputMessage.value.trim()
   if (!question || loading.value) return
 
-  loading.value = true  // Set loading immediately to prevent race condition
+  // 关闭之前的连接
+  activeEventSource?.close()
+
+  loading.value = true
   messages.value.push({ role: 'user', content: question })
   inputMessage.value = ''
 
@@ -23,17 +32,19 @@ async function sendMessage() {
 
   scrollToBottom()
 
-  const eventSource = createChatStream(question)
+  activeEventSource = createChatStream(question)
 
-  eventSource.onmessage = (event) => {
+  activeEventSource.onmessage = (event) => {
     if (event.data === '[DONE]') {
-      eventSource.close()
+      activeEventSource?.close()
+      activeEventSource = null
       loading.value = false
       return
     }
     if (event.data.startsWith('[ERROR] ')) {
       messages.value[assistantIndex].content = '抱歉，发生了错误：' + event.data.substring(8)
-      eventSource.close()
+      activeEventSource?.close()
+      activeEventSource = null
       loading.value = false
       return
     }
@@ -41,8 +52,9 @@ async function sendMessage() {
     scrollToBottom()
   }
 
-  eventSource.onerror = () => {
-    eventSource.close()
+  activeEventSource.onerror = () => {
+    activeEventSource?.close()
+    activeEventSource = null
     loading.value = false
     if (!messages.value[assistantIndex].content) {
       messages.value[assistantIndex].content = '抱歉，发生了错误，请重试。'
