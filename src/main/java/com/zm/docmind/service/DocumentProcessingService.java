@@ -71,12 +71,6 @@ public class DocumentProcessingService {
             log.error("文档异步处理失败: {} ({})", documentName, documentId, e);
             updateDocumentStatus(documentId, DocumentStatus.FAILED);
             cleanupOnFailure(documentId, filePath);
-            Document doc = documentRepository.findById(documentId).orElse(null);
-            if (doc != null) {
-                doc.setStatus(DocumentStatus.FAILED);
-                doc.setNewEntity(false);
-                documentRepository.save(doc);
-            }
         }
     }
 
@@ -125,11 +119,6 @@ public class DocumentProcessingService {
             } catch (Exception e) {
                 log.warn("清理嵌入向量失败: documentId={}", documentId, e);
             }
-            try {
-                documentRepository.deleteById(documentId);
-            } catch (Exception e) {
-                log.warn("删除文档记录失败: documentId={}", documentId, e);
-            }
         }
         if (filePath != null) {
             try {
@@ -137,6 +126,15 @@ public class DocumentProcessingService {
             } catch (IOException e) {
                 log.warn("删除文件失败: {}", filePath, e);
             }
+        }
+    }
+
+    public void deleteEmbeddings(String documentId) {
+        try {
+            embeddingStore.removeAll(metadataKey("documentId").isEqualTo(documentId));
+            log.info("已清理文档 {} 的嵌入向量", documentId);
+        } catch (Exception e) {
+            log.warn("清理嵌入向量失败: {}", documentId, e);
         }
     }
 }

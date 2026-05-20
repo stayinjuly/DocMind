@@ -4,8 +4,6 @@ import com.zm.docmind.entity.Document;
 import com.zm.docmind.entity.DocumentStatus;
 import com.zm.docmind.dto.DocumentUploadResponse;
 import com.zm.docmind.repository.DocumentRepository;
-import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.store.embedding.EmbeddingStore;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,8 +21,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.*;
-
-import static dev.langchain4j.store.embedding.filter.MetadataFilterBuilder.metadataKey;
 
 /**
  * 文档管理服务
@@ -57,14 +53,11 @@ public class DocumentService {
     private String storagePath;
 
     private final DocumentRepository documentRepository;
-    private final EmbeddingStore<TextSegment> embeddingStore;
     private final DocumentProcessingService documentProcessingService;
 
     public DocumentService(DocumentRepository documentRepository,
-                           EmbeddingStore<TextSegment> embeddingStore,
                            DocumentProcessingService documentProcessingService) {
         this.documentRepository = documentRepository;
-        this.embeddingStore = embeddingStore;
         this.documentProcessingService = documentProcessingService;
     }
 
@@ -132,7 +125,7 @@ public class DocumentService {
 
         String extension = getFileExtension(originalFilename).toLowerCase();
         if (!SUPPORTED_TYPES.contains(extension)) {
-            return DocumentUploadResponse.error("不支持的文件类型，仅支持 TXT、Markdown、PDF 和 Word 文件");
+            return DocumentUploadResponse.error("不支持的文件类型，仅支持 TXT、Markdown、PDF、Word、Excel 和 CSV 文件");
         }
 
         // 校验文件实际内容类型，防止伪装扩展名上传恶意文件
@@ -186,12 +179,7 @@ public class DocumentService {
         }
 
         // 使用元数据过滤删除该文档的所有向量
-        try {
-            embeddingStore.removeAll(metadataKey("documentId").isEqualTo(id));
-            log.info("已清理文档 {} 的嵌入向量", id);
-        } catch (Exception e) {
-            log.warn("清理嵌入向量失败: {}", id, e);
-        }
+        documentProcessingService.deleteEmbeddings(id);
 
         try {
             Files.deleteIfExists(Paths.get(document.getFilePath()));

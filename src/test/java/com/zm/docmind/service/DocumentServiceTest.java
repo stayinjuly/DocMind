@@ -3,8 +3,6 @@ package com.zm.docmind.service;
 import com.zm.docmind.entity.Document;
 import com.zm.docmind.entity.DocumentStatus;
 import com.zm.docmind.repository.DocumentRepository;
-import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.store.embedding.EmbeddingStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -36,15 +34,13 @@ class DocumentServiceTest {
     @Mock
     private DocumentRepository documentRepository;
     @Mock
-    private EmbeddingStore<TextSegment> embeddingStore;
-    @Mock
     private DocumentProcessingService documentProcessingService;
 
     private DocumentService documentService;
 
     @BeforeEach
     void setUp() {
-        documentService = new DocumentService(documentRepository, embeddingStore, documentProcessingService);
+        documentService = new DocumentService(documentRepository, documentProcessingService);
         ReflectionTestUtils.setField(documentService, "storagePath", tempDir.toString());
         ReflectionTestUtils.setField(documentService, "maxFileSize", 10);
     }
