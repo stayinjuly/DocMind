@@ -17,7 +17,7 @@ async function loadDocuments() {
   loading.value = true
   try {
     const response = await documentApi.list()
-    documents.value = response.data
+    documents.value = response.data.content ?? response.data
   } catch {
     ElMessage.error('加载文档列表失败')
   } finally {

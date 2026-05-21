@@ -19,6 +19,14 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// 响应拦截器：统一解包 ApiResponse 包装层
+api.interceptors.response.use((response) => {
+  if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+    response.data = response.data.data
+  }
+  return response
+})
+
 // 401 响应拦截器：令牌过期时跳转到登录页
 api.interceptors.response.use(
   (response) => response,
