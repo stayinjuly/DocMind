@@ -1,0 +1,120 @@
+@import './variables.css';
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100%;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--color-primary-light);
+  color: var(--color-text-inverse);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Route transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--transition-normal);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: opacity var(--transition-normal), transform var(--transition-normal);
+}
+
+.slide-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* Override Element Plus primary color */
+:root {
+  --el-color-primary: #6C5CE7;
+  --el-color-primary-light-3: #9B8FEF;
+  --el-color-primary-light-5: #B8B0F3;
+  --el-color-primary-light-7: #D5D1F7;
+  --el-color-primary-light-9: #EDECFB;
+  --el-color-primary-dark-2: #5649C0;
+}
+
+/* Responsive: mobile sidebar overlay */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: var(--z-sidebar);
+    transform: translateX(0);
+    transition: transform var(--transition-normal);
+  }
+
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+    width: var(--sidebar-width) !important;
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: calc(var(--z-sidebar) - 1);
+  }
+
+  .mobile-topbar {
+    display: flex !important;
+  }
+
+  .main-content {
+    width: 100% !important;
+  }
+}
