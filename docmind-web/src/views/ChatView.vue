@@ -2,7 +2,10 @@
 import { ref, nextTick, onUnmounted } from 'vue'
 import { createChatStream, qaApi } from '../api'
 import { ElMessage } from 'element-plus'
+import { Delete } from '@element-plus/icons-vue'
 import type { ChatMessage } from '../api/types'
+import ChatMessageBubble from '../components/ChatMessage.vue'
+import ChatEmptyState from '../components/ChatEmptyState.vue'
 
 const messages = ref<ChatMessage[]>([])
 const inputMessage = ref('')
@@ -15,18 +18,20 @@ onUnmounted(() => {
   activeEventSource = null
 })
 
+function applySuggestion(text: string) {
+  inputMessage.value = text
+}
+
 async function sendMessage() {
   const question = inputMessage.value.trim()
   if (!question || loading.value) return
 
-  // 关闭之前的连接
   activeEventSource?.close()
 
   loading.value = true
   messages.value.push({ role: 'user', content: question })
   inputMessage.value = ''
 
-  // Add placeholder for assistant response
   messages.value.push({ role: 'assistant', content: '' })
   const assistantIndex = messages.value.length - 1
 
@@ -86,46 +91,67 @@ function handleKeydown(e: KeyboardEvent) {
     sendMessage()
   }
 }
+
+function autoResize(e: Event) {
+  const el = e.target as HTMLTextAreaElement
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px'
+}
 </script>
 
 <template>
   <div class="chat-view">
-    <div class="chat-header">
-      <h2>DocMind 知识库问答</h2>
-      <el-button type="danger" size="small" @click="clearHistory">清除对话</el-button>
-    </div>
-
-    <div class="chat-container" ref="chatContainer">
-      <div v-if="messages.length === 0" class="empty-state">
-        <p>请输入问题，我将基于知识库为您解答</p>
-      </div>
-
-      <div
-        v-for="(msg, index) in messages"
-        :key="index"
-        :class="['message', msg.role]"
+    <div class="chat-topbar">
+      <span class="topbar-title">对话问答</span>
+      <el-button
+        v-if="messages.length > 0"
+        text
+        size="small"
+        :icon="Delete"
+        @click="clearHistory"
       >
-        <div class="message-content">
-          {{ msg.content }}
-          <span v-if="loading && index === messages.length - 1 && msg.role === 'assistant' && !msg.content" class="typing">
-            正在思考...
-          </span>
-        </div>
+        清除对话
+      </el-button>
+    </div>
+
+    <div class="chat-messages" ref="chatContainer">
+      <ChatEmptyState
+        v-if="messages.length === 0"
+        @select="applySuggestion"
+      />
+
+      <div class="messages-inner">
+        <ChatMessageBubble
+          v-for="(msg, index) in messages"
+          :key="index"
+          :message="msg"
+          :is-streaming="loading && index === messages.length - 1 && msg.role === 'assistant'"
+        />
       </div>
     </div>
 
-    <div class="chat-input">
-      <el-input
-        v-model="inputMessage"
-        type="textarea"
-        :rows="2"
-        placeholder="输入您的问题..."
-        @keydown="handleKeydown"
-        :disabled="loading"
-      />
-      <el-button type="primary" @click="sendMessage" :loading="loading">
-        发送
-      </el-button>
+    <div class="chat-input-area">
+      <div class="input-wrapper">
+        <textarea
+          v-model="inputMessage"
+          class="chat-textarea"
+          placeholder="输入您的问题..."
+          rows="1"
+          :disabled="loading"
+          @keydown="handleKeydown"
+          @input="autoResize"
+        />
+        <button
+          class="send-btn"
+          :disabled="!inputMessage.trim() || loading"
+          @click="sendMessage"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -134,88 +160,96 @@ function handleKeydown(e: KeyboardEvent) {
 .chat-view {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 20px;
+  height: 100vh;
 }
 
-.chat-header {
+.chat-topbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-surface);
 }
 
-.chat-header h2 {
-  margin: 0;
-  color: #303133;
+.topbar-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
-.chat-container {
+.chat-messages {
   flex: 1;
   overflow-y: auto;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 20px;
-  background: #fafafa;
-  margin-bottom: 20px;
+  padding: var(--spacing-lg);
 }
 
-.empty-state {
+.messages-inner {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.chat-input-area {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-lg);
+  background: var(--color-bg);
+}
+
+.input-wrapper {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  background: var(--chat-input-bg);
+  border: 1px solid var(--chat-input-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) var(--spacing-md);
+  transition: border-color var(--transition-fast);
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--color-primary-light);
+}
+
+.chat-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  background: transparent;
+  max-height: 160px;
+  padding: 6px 0;
+}
+
+.chat-textarea::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-primary);
+  color: white;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: #909399;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
 }
 
-.message {
-  margin-bottom: 16px;
-  max-width: 80%;
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.message.user {
-  margin-left: auto;
-  text-align: right;
-}
-
-.message.user .message-content {
-  background: #409eff;
-  color: white;
-}
-
-.message.assistant .message-content {
-  background: white;
-  color: #303133;
-  text-align: left;
-}
-
-.message-content {
-  padding: 12px 16px;
-  border-radius: 8px;
-  display: inline-block;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-
-.typing {
-  color: #909399;
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0.3; }
-}
-
-.chat-input {
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-}
-
-.chat-input .el-textarea {
-  flex: 1;
+.send-btn:not(:disabled):hover {
+  opacity: 0.85;
 }
 </style>
