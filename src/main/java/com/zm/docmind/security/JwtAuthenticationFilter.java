@@ -17,8 +17,8 @@ import java.util.List;
 
 /**
  * JWT 认证过滤器
- * 从请求头或查询参数中提取 JWT 令牌并验证
- * 支持查询参数是为了兼容 SSE EventSource（无法设置自定义请求头）
+ * 从 Authorization 请求头中提取 Bearer JWT 令牌并验证
+ * （SSE 流式问答已改用 fetch + Authorization 头，不再需要查询参数回退）
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -57,21 +57,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 从 Authorization 请求头或 token 查询参数中提取令牌
+     * 从 Authorization 请求头中提取 Bearer 令牌
      */
     private String extractToken(HttpServletRequest request) {
-        // 优先从请求头获取
         String bearer = request.getHeader("Authorization");
         if (bearer != null && bearer.startsWith("Bearer ")) {
             return bearer.substring(7);
         }
-
-        // 兼容 SSE EventSource（不支持自定义请求头）
-        String queryToken = request.getParameter("token");
-        if (queryToken != null && !queryToken.isEmpty()) {
-            return queryToken;
-        }
-
         return null;
     }
 }

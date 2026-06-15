@@ -32,9 +32,10 @@ public class QaController {
         return ApiResponse.ok(answer);
     }
 
-    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamAsk(@AuthenticationPrincipal String email,
-                                @RequestParam String question) {
+                                @Valid @RequestBody QaRequest request) {
+        String question = request.getQuestion();
         SseEmitter emitter = new SseEmitter(120000L);
 
         emitter.onTimeout(() -> {

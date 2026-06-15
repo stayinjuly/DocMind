@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick, onUnmounted } from 'vue'
-import { createChatStream, qaApi } from '../api'
+import { streamChat, qaApi } from '../api'
 import { ElMessage } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import type { ChatMessage } from '../api/types'
@@ -11,11 +11,11 @@ const messages = ref<ChatMessage[]>([])
 const inputMessage = ref('')
 const loading = ref(false)
 const chatContainer = ref<HTMLElement | null>(null)
-let activeEventSource: EventSource | null = null
+let abortController: AbortController | null = null
 
 onUnmounted(() => {
-  activeEventSource?.close()
-  activeEventSource = null
+  abortController?.abort()
+  abortController = null
 })
 
 function applySuggestion(text: string) {
@@ -26,7 +26,7 @@ async function sendMessage() {
   const question = inputMessage.value.trim()
   if (!question || loading.value) return
 
-  activeEventSource?.close()
+  abortController?.abort()
 
   loading.value = true
   messages.value.push({ role: 'user', content: question })
@@ -37,33 +37,36 @@ async function sendMessage() {
 
   scrollToBottom()
 
-  activeEventSource = createChatStream(question)
+  const myController = new AbortController()
+  abortController = myController
 
-  activeEventSource.onmessage = (event) => {
-    if (event.data === '[DONE]') {
-      activeEventSource?.close()
-      activeEventSource = null
-      loading.value = false
-      return
-    }
-    if (event.data.startsWith('[ERROR] ')) {
-      messages.value[assistantIndex].content = '抱歉，发生了错误：' + event.data.substring(8)
-      activeEventSource?.close()
-      activeEventSource = null
-      loading.value = false
-      return
-    }
-    messages.value[assistantIndex].content += event.data
-    scrollToBottom()
-  }
+  await streamChat(question, {
+    signal: myController.signal,
+    onMessage: (data) => {
+      if (data === '[DONE]') {
+        if (abortController === myController) loading.value = false
+        return
+      }
+      if (data.startsWith('[ERROR] ')) {
+        messages.value[assistantIndex].content = '抱歉，发生了错误：' + data.substring(8)
+        if (abortController === myController) loading.value = false
+        return
+      }
+      messages.value[assistantIndex].content += data
+      scrollToBottom()
+    },
+    onError: () => {
+      if (!messages.value[assistantIndex].content) {
+        messages.value[assistantIndex].content = '抱歉，发生了错误，请重试。'
+      }
+      if (abortController === myController) loading.value = false
+    },
+  })
 
-  activeEventSource.onerror = () => {
-    activeEventSource?.close()
-    activeEventSource = null
+  // 安全兜底：仅当当前流仍是我时才复位（避免覆盖后续新流的状态）
+  if (abortController === myController) {
     loading.value = false
-    if (!messages.value[assistantIndex].content) {
-      messages.value[assistantIndex].content = '抱歉，发生了错误，请重试。'
-    }
+    abortController = null
   }
 }
 
