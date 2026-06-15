@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Document, AuthResponse } from './types'
+import type { Document, AuthResponse, PageResult } from './types'
 import { useUserStore } from '../stores/user'
 import router from '../router'
 
@@ -55,7 +55,8 @@ export const authApi = {
 
 // 文档 API（不再需要传 userId，由后端从 JWT 中提取）
 export const documentApi = {
-  list: () => api.get<Document[]>('/documents'),
+  list: (page = 0, size = 20) =>
+    api.get<PageResult<Document>>('/documents', { params: { page, size } }),
 
   upload: (file: File, isPublic: boolean = false) => {
     const formData = new FormData()

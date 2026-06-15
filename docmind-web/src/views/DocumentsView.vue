@@ -11,6 +11,11 @@ const uploadLoading = ref(false)
 const uploadPublic = ref(false)
 const dragActive = ref(false)
 
+// 分页状态（el-pagination 用 1-based，后端用 0-based）
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
 onMounted(() => {
   loadDocuments()
 })
@@ -18,13 +23,25 @@ onMounted(() => {
 async function loadDocuments() {
   loading.value = true
   try {
-    const response = await documentApi.list()
-    documents.value = (response.data as any).content ?? response.data
+    const response = await documentApi.list(currentPage.value - 1, pageSize.value)
+    documents.value = response.data.content
+    total.value = response.data.totalElements
   } catch {
     ElMessage.error('加载文档列表失败')
   } finally {
     loading.value = false
   }
+}
+
+function onPageChange(page: number) {
+  currentPage.value = page
+  loadDocuments()
+}
+
+function onSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+  loadDocuments()
 }
 
 async function handleUpload(file: File) {
@@ -40,6 +57,7 @@ async function handleUpload(file: File) {
     const result = response.data as UploadResponse
     if (result.success) {
       ElMessage.success('文档上传成功，正在后台处理中...')
+      currentPage.value = 1
       loadDocuments()
     } else {
       ElMessage.error(result.message)
@@ -79,6 +97,10 @@ async function handleDelete(doc: Document) {
   try {
     await documentApi.delete(doc.id)
     ElMessage.success('删除成功')
+    // 删除当前页最后一条时回退一页，避免停留在空页
+    if (documents.value.length === 1 && currentPage.value > 1) {
+      currentPage.value--
+    }
     loadDocuments()
   } catch {
     ElMessage.error('删除失败')
@@ -205,6 +227,19 @@ function statusLabel(status: string) {
         </template>
       </el-table-column>
     </el-table>
+
+    <div class="pagination-wrapper">
+      <el-pagination
+        background
+        layout="total, prev, pager, next, sizes"
+        :total="total"
+        :page-size="pageSize"
+        :current-page="currentPage"
+        :page-sizes="[10, 20, 50]"
+        @current-change="onPageChange"
+        @size-change="onSizeChange"
+      />
+    </div>
   </div>
 </template>
 
@@ -213,6 +248,12 @@ function statusLabel(status: string) {
   padding: var(--spacing-lg);
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-lg);
 }
 
 .page-header {
