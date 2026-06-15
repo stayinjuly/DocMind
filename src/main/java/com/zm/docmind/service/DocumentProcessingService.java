@@ -39,6 +39,9 @@ public class DocumentProcessingService {
     @Value("${docmind.rag.chunk-overlap:100}")
     private int chunkOverlap;
 
+    @Value("${docmind.embedding.batch-size:32}")
+    private int embeddingBatchSize;
+
     public DocumentProcessingService(EmbeddingModel embeddingModel,
                                      EmbeddingStore<TextSegment> embeddingStore,
                                      DocumentRepository documentRepository,
@@ -105,10 +108,19 @@ public class DocumentProcessingService {
             segments.add(new TextSegment(raw.text(), metadata));
         }
 
-        List<Embedding> embeddings = embeddingModel.embedAll(segments).content();
-        embeddingStore.addAll(embeddings, segments);
+        // 分批嵌入，避免单次请求触发 embedding API 的输入数量/Token 上限
+        int batchSize = Math.max(1, embeddingBatchSize);
+        int totalBatches = (segments.size() + batchSize - 1) / batchSize;
+        List<Embedding> allEmbeddings = new ArrayList<>();
+        for (int i = 0; i < segments.size(); i += batchSize) {
+            List<TextSegment> batch = segments.subList(i, Math.min(i + batchSize, segments.size()));
+            allEmbeddings.addAll(embeddingModel.embedAll(batch).content());
+            log.info("文档 {} 向量化批次: {}/{}", documentId, (i / batchSize) + 1, totalBatches);
+        }
+        embeddingStore.addAll(allEmbeddings, segments);
 
-        log.info("文档向量化完成: {}, 共 {} 个分块 (chunkSize={}, overlap={})", documentId, segments.size(), chunkSize, chunkOverlap);
+        log.info("文档向量化完成: {}, 共 {} 个分块 (chunkSize={}, overlap={}, batchSize={})",
+                documentId, segments.size(), chunkSize, chunkOverlap, batchSize);
         return segments.size();
     }
 
