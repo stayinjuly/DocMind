@@ -76,7 +76,7 @@ DocMind/
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | POST | `/qa` | 普通问答（JSON body: `{"question": "xxx"}`） |
-| POST | `/qa/stream` | 流式问答 SSE（JSON body: `{"question": "xxx"}`） |
+| POST | `/qa/stream` | 流式问答 SSE（JSON body: `{"question": "xxx"}`，需在 `Authorization` 头携带 JWT） |
 | DELETE | `/qa/history` | 清除对话历史 |
 
 ## 数据库设计
