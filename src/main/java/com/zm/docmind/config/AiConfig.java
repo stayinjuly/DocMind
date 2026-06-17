@@ -54,14 +54,14 @@ public class AiConfig {
     @Value("${docmind.embedding.base-url:}")
     private String embeddingBaseUrl;
 
-    @Value("${docmind.embedding.dimensions:}")
+    @Value("${docmind.embedding.model-dimensions:}")
     private Integer embeddingDimensions;
 
     // 向量存储配置
     @Value("${docmind.embedding.table}")
     private String embeddingTable;
 
-    @Value("${docmind.embedding.dimension}")
+    @Value("${docmind.embedding.store-dimension}")
     private int embeddingDimension;
 
     /** Chat 模型，通过 OpenAI 兼容协议对接 */
@@ -135,7 +135,7 @@ public class AiConfig {
             if (modelDim != embeddingDimension) {
                 String msg = String.format(
                         "Embedding 模型维度(%d)与 PgVector 表维度(%d)不一致！"
-                        + "请修改 docmind.embedding.dimension 为 %d，"
+                        + "请修改 docmind.embedding.store-dimension 为 %d，"
                         + "并执行 DROP TABLE %s 后重启（需重新上传文档）",
                         modelDim, embeddingDimension, modelDim, embeddingTable);
                 log.error(msg);
