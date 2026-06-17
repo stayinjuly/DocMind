@@ -40,7 +40,7 @@ async function handleSubmit() {
       password.value = ''
     }
   } catch (error: any) {
-    const msg = error.response?.data?.error || (isLogin.value ? '登录失败' : '注册失败')
+    const msg = error.response?.data?.message || (isLogin.value ? '登录失败' : '注册失败')
     ElMessage.error(msg)
   } finally {
     loading.value = false

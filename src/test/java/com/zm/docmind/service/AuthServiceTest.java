@@ -1,6 +1,9 @@
 package com.zm.docmind.service;
 
 import com.zm.docmind.entity.User;
+import com.zm.docmind.exception.EmailAlreadyRegisteredException;
+import com.zm.docmind.exception.InvalidCredentialsException;
+import com.zm.docmind.exception.InvalidInputException;
 import com.zm.docmind.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -61,53 +64,53 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("邮箱为 null 应抛 IllegalArgumentException")
+        @DisplayName("邮箱为 null 应抛业务异常")
         void nullEmail_throwsException() {
             assertThatThrownBy(() -> authService.register(null, "password123"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidInputException.class)
                     .hasMessageContaining("邮箱");
         }
 
         @Test
-        @DisplayName("邮箱为空字符串应抛 IllegalArgumentException")
+        @DisplayName("邮箱为空字符串应抛业务异常")
         void blankEmail_throwsException() {
             assertThatThrownBy(() -> authService.register("  ", "password123"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidInputException.class)
                     .hasMessageContaining("邮箱");
         }
 
         @ParameterizedTest
         @ValueSource(strings = {"invalid", "no-at-sign.com", "@no-local.com", "no-domain@", "user@.com"})
-        @DisplayName("邮箱格式不正确应抛 IllegalArgumentException")
+        @DisplayName("邮箱格式不正确应抛业务异常")
         void invalidEmailFormat_throwsException(String email) {
             assertThatThrownBy(() -> authService.register(email, "password123"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidInputException.class)
                     .hasMessageContaining("邮箱格式");
         }
 
         @Test
-        @DisplayName("密码长度不足 6 位应抛 IllegalArgumentException")
+        @DisplayName("密码长度不足 6 位应抛业务异常")
         void shortPassword_throwsException() {
             assertThatThrownBy(() -> authService.register("user@test.com", "12345"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidInputException.class)
                     .hasMessageContaining("密码");
         }
 
         @Test
-        @DisplayName("密码为 null 应抛 IllegalArgumentException")
+        @DisplayName("密码为 null 应抛业务异常")
         void nullPassword_throwsException() {
             assertThatThrownBy(() -> authService.register("user@test.com", null))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidInputException.class)
                     .hasMessageContaining("密码");
         }
 
         @Test
-        @DisplayName("重复邮箱应抛 IllegalArgumentException")
+        @DisplayName("重复邮箱应抛业务异常")
         void duplicateEmail_throwsException() {
             when(userRepository.existsByEmail("user@test.com")).thenReturn(true);
 
             assertThatThrownBy(() -> authService.register("user@test.com", "password123"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(EmailAlreadyRegisteredException.class)
                     .hasMessageContaining("已被注册");
         }
     }
@@ -131,24 +134,24 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("不存在的邮箱应抛 IllegalArgumentException")
+        @DisplayName("不存在的邮箱应抛业务异常")
         void nonexistentEmail_throwsException() {
             when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> authService.login("unknown@test.com", "password123"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidCredentialsException.class)
                     .hasMessageContaining("邮箱或密码错误");
         }
 
         @Test
-        @DisplayName("密码错误应抛 IllegalArgumentException")
+        @DisplayName("密码错误应抛业务异常")
         void wrongPassword_throwsException() {
             User user = User.builder().email("user@test.com").password("encodedPwd").build();
             when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
             when(passwordEncoder.matches("wrongPwd", "encodedPwd")).thenReturn(false);
 
             assertThatThrownBy(() -> authService.login("user@test.com", "wrongPwd"))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidCredentialsException.class)
                     .hasMessageContaining("密码错误");
         }
 
