@@ -4,6 +4,7 @@ import com.zm.docmind.dto.ApiResponse;
 import com.zm.docmind.dto.QaRequest;
 import com.zm.docmind.service.QaAssistant;
 import com.zm.docmind.service.QaAssistantManager;
+import com.zm.docmind.service.QaRateLimiter;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -19,14 +20,17 @@ import java.io.IOException;
 public class QaController {
 
     private final QaAssistantManager assistantManager;
+    private final QaRateLimiter rateLimiter;
 
-    public QaController(QaAssistantManager assistantManager) {
+    public QaController(QaAssistantManager assistantManager, QaRateLimiter rateLimiter) {
         this.assistantManager = assistantManager;
+        this.rateLimiter = rateLimiter;
     }
 
     @PostMapping
     public ApiResponse<String> ask(@AuthenticationPrincipal String email,
                                     @Valid @RequestBody QaRequest request) {
+        rateLimiter.checkAndConsume(email);
         QaAssistant assistant = assistantManager.getAssistant(email);
         String answer = assistant.answer(request.getQuestion());
         return ApiResponse.ok(answer);
@@ -35,6 +39,7 @@ public class QaController {
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamAsk(@AuthenticationPrincipal String email,
                                 @Valid @RequestBody QaRequest request) {
+        rateLimiter.checkAndConsume(email);
         String question = request.getQuestion();
         SseEmitter emitter = new SseEmitter(120000L);
 
