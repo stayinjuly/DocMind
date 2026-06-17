@@ -2,6 +2,7 @@ package com.zm.docmind.service;
 
 import com.zm.docmind.entity.Document;
 import com.zm.docmind.entity.DocumentStatus;
+import com.zm.docmind.exception.InvalidInputException;
 import com.zm.docmind.repository.DocumentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,54 +51,50 @@ class DocumentServiceTest {
     class UploadDocument {
 
         @Test
-        @DisplayName("正常上传应返回成功响应并保存文档")
+        @DisplayName("正常上传应返回 documentId 并保存文档")
         void success() {
             MockMultipartFile file = new MockMultipartFile(
                     "file", "test.pdf", "application/pdf", "content".getBytes());
 
-            var response = documentService.uploadDocument(file, "user@test.com", false);
+            String documentId = documentService.uploadDocument(file, "user@test.com", false);
 
-            assertThat(response.isSuccess()).isTrue();
-            assertThat(response.getDocumentId()).isNotBlank();
+            assertThat(documentId).isNotBlank();
             verify(documentRepository).save(any(Document.class));
             verify(documentProcessingService).processDocumentAsync(anyString(), any(Path.class),
                     eq("test.pdf"), eq("user@test.com"), eq(false));
         }
 
         @Test
-        @DisplayName("文件名为 null 应返回错误")
-        void nullFilename_returnsError() {
+        @DisplayName("文件名为 null 应抛 InvalidInputException")
+        void nullFilename_throwsException() {
             MockMultipartFile file = new MockMultipartFile(
                     "file", null, "application/pdf", "content".getBytes());
 
-            var response = documentService.uploadDocument(file, "user@test.com", false);
-
-            assertThat(response.isSuccess()).isFalse();
+            assertThatThrownBy(() -> documentService.uploadDocument(file, "user@test.com", false))
+                    .isInstanceOf(InvalidInputException.class);
         }
 
         @Test
-        @DisplayName("超大文件应返回错误")
-        void oversizedFile_returnsError() {
+        @DisplayName("超大文件应抛 InvalidInputException")
+        void oversizedFile_throwsException() {
             byte[] largeContent = new byte[11 * 1024 * 1024]; // 11MB, 超过 10MB 限制
             MockMultipartFile file = new MockMultipartFile(
                     "file", "test.pdf", "application/pdf", largeContent);
 
-            var response = documentService.uploadDocument(file, "user@test.com", false);
-
-            assertThat(response.isSuccess()).isFalse();
-            assertThat(response.getMessage()).contains("文件过大");
+            assertThatThrownBy(() -> documentService.uploadDocument(file, "user@test.com", false))
+                    .isInstanceOf(InvalidInputException.class)
+                    .hasMessageContaining("文件过大");
         }
 
         @Test
-        @DisplayName("不支持的文件类型应返回错误")
-        void unsupportedType_returnsError() {
+        @DisplayName("不支持的文件类型应抛 InvalidInputException")
+        void unsupportedType_throwsException() {
             MockMultipartFile file = new MockMultipartFile(
                     "file", "test.exe", "application/octet-stream", "content".getBytes());
 
-            var response = documentService.uploadDocument(file, "user@test.com", false);
-
-            assertThat(response.isSuccess()).isFalse();
-            assertThat(response.getMessage()).contains("不支持");
+            assertThatThrownBy(() -> documentService.uploadDocument(file, "user@test.com", false))
+                    .isInstanceOf(InvalidInputException.class)
+                    .hasMessageContaining("不支持");
         }
 
         @Test
@@ -203,26 +200,35 @@ class DocumentServiceTest {
     class DeleteDocument {
 
         @Test
-        @DisplayName("存在的文档应删除成功并返回 true")
-        void existingDoc_returnsTrue() {
-            Document doc = Document.builder().id("1")
+        @DisplayName("所有者删除存在的文档应成功")
+        void existingDoc_success() {
+            Document doc = Document.builder().id("1").userId("owner@test.com")
                     .filePath(tempDir.resolve("test.txt").toString()).build();
             when(documentRepository.findById("1")).thenReturn(Optional.of(doc));
 
-            boolean result = documentService.deleteDocument("1");
+            documentService.deleteDocument("1", "owner@test.com");
 
-            assertThat(result).isTrue();
             verify(documentRepository).deleteById("1");
         }
 
         @Test
-        @DisplayName("不存在的文档应返回 false")
-        void nonexistentDoc_returnsFalse() {
+        @DisplayName("不存在的文档应抛 NoSuchElementException")
+        void nonexistentDoc_throwsNoSuchElement() {
             when(documentRepository.findById("999")).thenReturn(Optional.empty());
 
-            boolean result = documentService.deleteDocument("999");
+            assertThatThrownBy(() -> documentService.deleteDocument("999", "user@test.com"))
+                    .isInstanceOf(NoSuchElementException.class);
+            verify(documentRepository, never()).deleteById(anyString());
+        }
 
-            assertThat(result).isFalse();
+        @Test
+        @DisplayName("非所有者删除应抛 AccessDeniedException")
+        void nonOwner_throwsAccessDenied() {
+            Document doc = Document.builder().id("1").userId("owner@test.com").build();
+            when(documentRepository.findById("1")).thenReturn(Optional.of(doc));
+
+            assertThatThrownBy(() -> documentService.deleteDocument("1", "other@test.com"))
+                    .isInstanceOf(AccessDeniedException.class);
             verify(documentRepository, never()).deleteById(anyString());
         }
     }

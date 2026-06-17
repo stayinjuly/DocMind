@@ -1,7 +1,6 @@
 package com.zm.docmind.controller;
 
 import com.zm.docmind.dto.ApiResponse;
-import com.zm.docmind.dto.DocumentUploadResponse;
 import com.zm.docmind.dto.DocumentVO;
 import com.zm.docmind.entity.Document;
 import com.zm.docmind.service.DocumentService;
@@ -45,23 +44,18 @@ public class DocumentController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<DocumentUploadResponse>> uploadDocument(
+    public ResponseEntity<ApiResponse<String>> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "isPublic", defaultValue = "false") boolean isPublic,
             @AuthenticationPrincipal String email) {
-        DocumentUploadResponse response = documentService.uploadDocument(file, email, isPublic);
-        if (response.isSuccess()) {
-            return ResponseEntity.ok(ApiResponse.ok("文档上传成功", response));
-        }
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error(response.getMessage()));
+        String documentId = documentService.uploadDocument(file, email, isPublic);
+        return ResponseEntity.ok(ApiResponse.ok("文档上传成功", documentId));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteDocument(@PathVariable String id,
                                                              @AuthenticationPrincipal String email) {
-        documentService.getOwnedDocument(id, email);
-        documentService.deleteDocument(id);
+        documentService.deleteDocument(id, email);
         return ResponseEntity.ok(ApiResponse.ok("文档删除成功", null));
     }
 

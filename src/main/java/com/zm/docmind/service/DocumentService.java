@@ -2,14 +2,17 @@ package com.zm.docmind.service;
 
 import com.zm.docmind.entity.Document;
 import com.zm.docmind.entity.DocumentStatus;
-import com.zm.docmind.dto.DocumentUploadResponse;
+import com.zm.docmind.exception.BusinessException;
+import com.zm.docmind.exception.InvalidInputException;
 import com.zm.docmind.repository.DocumentRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import org.springframework.security.access.AccessDeniedException;
@@ -113,19 +116,19 @@ public class DocumentService {
         return document;
     }
 
-    public DocumentUploadResponse uploadDocument(MultipartFile file, String userId, boolean isPublic) {
+    public String uploadDocument(MultipartFile file, String userId, boolean isPublic) {
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
-            return DocumentUploadResponse.error("文件名无效");
+            throw new InvalidInputException("文件名无效");
         }
 
         if (file.getSize() > (long) maxFileSize * 1024 * 1024) {
-            return DocumentUploadResponse.error("文件过大，最大支持 " + maxFileSize + "MB");
+            throw new InvalidInputException("文件过大，最大支持 " + maxFileSize + "MB");
         }
 
         String extension = getFileExtension(originalFilename).toLowerCase();
         if (!SUPPORTED_TYPES.contains(extension)) {
-            return DocumentUploadResponse.error("不支持的文件类型，仅支持 TXT、Markdown、PDF、Word、Excel 和 CSV 文件");
+            throw new InvalidInputException("不支持的文件类型，仅支持 TXT、Markdown、PDF、Word、Excel 和 CSV 文件");
         }
 
         // 校验文件实际内容类型，防止伪装扩展名上传恶意文件
@@ -135,61 +138,54 @@ public class DocumentService {
             boolean mimeMatched = allowedMimes.stream().anyMatch(contentType::startsWith);
             if (!mimeMatched) {
                 log.warn("文件内容类型不匹配: 扩展名={}, Content-Type={}, 文件名={}", extension, contentType, originalFilename);
-                return DocumentUploadResponse.error("文件内容类型与扩展名不匹配，请检查文件是否合法");
+                throw new InvalidInputException("文件内容类型与扩展名不匹配，请检查文件是否合法");
             }
         }
 
-        Path filePath = null;
-        String documentId = null;
-
+        String documentId = UUID.randomUUID().toString();
+        Path filePath;
         try {
-            documentId = UUID.randomUUID().toString();
             filePath = saveFile(file, documentId, extension);
-
-            Document document = Document.builder()
-                    .id(documentId)
-                    .name(originalFilename)
-                    .type(extension)
-                    .size(file.getSize())
-                    .filePath(filePath.toString())
-                    .isPublic(isPublic)
-                    .uploadTime(LocalDateTime.now())
-                    .userId(userId)
-                    .status(DocumentStatus.PENDING)
-                    .build();
-
-            documentRepository.save(document);
-
-            // 异步执行文档解析和向量化，立即返回响应
-            documentProcessingService.processDocumentAsync(documentId, filePath, originalFilename, userId, isPublic);
-
-            log.info("文档上传已接受: {} ({}), 用户: {}, 公开: {}", originalFilename, documentId, userId, isPublic);
-            return DocumentUploadResponse.success(documentId);
-
-        } catch (Exception e) {
-            log.error("文档上传失败: {}", originalFilename, e);
-            return DocumentUploadResponse.error("文档上传失败: " + e.getMessage());
+        } catch (IOException e) {
+            log.error("文档保存失败: {}", originalFilename, e);
+            throw new BusinessException("文档上传失败: " + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
+
+        Document document = Document.builder()
+                .id(documentId)
+                .name(originalFilename)
+                .type(extension)
+                .size(file.getSize())
+                .filePath(filePath.toString())
+                .isPublic(isPublic)
+                .uploadTime(LocalDateTime.now())
+                .userId(userId)
+                .status(DocumentStatus.PENDING)
+                .build();
+
+        documentRepository.save(document);
+
+        // 异步执行文档解析和向量化，立即返回响应
+        documentProcessingService.processDocumentAsync(documentId, filePath, originalFilename, userId, isPublic);
+
+        log.info("文档上传已接受: {} ({}), 用户: {}, 公开: {}", originalFilename, documentId, userId, isPublic);
+        return documentId;
     }
 
-    public boolean deleteDocument(String id) {
-        Document document = documentRepository.findById(id).orElse(null);
-        if (document == null) {
-            return false;
-        }
+    @Transactional
+    public void deleteDocument(String id, String userId) {
+        // 复用所有权校验：文档不存在抛 NoSuchElementException，非所有者抛 AccessDeniedException（纵深防御）
+        Document document = getOwnedDocument(id, userId);
 
-        // 使用元数据过滤删除该文档的所有向量
+        documentRepository.deleteById(id);
         documentProcessingService.deleteEmbeddings(id);
-
         try {
             Files.deleteIfExists(Paths.get(document.getFilePath()));
         } catch (IOException e) {
             log.error("删除文件失败: {}", document.getFilePath(), e);
         }
 
-        documentRepository.deleteById(id);
         log.info("文档删除成功: {}", id);
-        return true;
     }
 
     private Path saveFile(MultipartFile file, String documentId, String extension) throws IOException {

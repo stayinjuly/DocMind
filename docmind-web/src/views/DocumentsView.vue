@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { documentApi } from '../api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Refresh, Delete } from '@element-plus/icons-vue'
-import type { Document, UploadResponse } from '../api/types'
+import type { Document } from '../api/types'
 
 const documents = ref<Document[]>([])
 const loading = ref(false)
@@ -53,17 +53,13 @@ async function handleUpload(file: File) {
 
   uploadLoading.value = true
   try {
-    const response = await documentApi.upload(file, uploadPublic.value)
-    const result = response.data as UploadResponse
-    if (result.success) {
-      ElMessage.success('文档上传成功，正在后台处理中...')
-      currentPage.value = 1
-      loadDocuments()
-    } else {
-      ElMessage.error(result.message)
-    }
-  } catch {
-    ElMessage.error('上传失败')
+    await documentApi.upload(file, uploadPublic.value)
+    ElMessage.success('文档上传成功，正在后台处理中...')
+    currentPage.value = 1
+    loadDocuments()
+  } catch (error: any) {
+    const msg = error.response?.data?.message || '上传失败'
+    ElMessage.error(msg)
   } finally {
     uploadLoading.value = false
   }

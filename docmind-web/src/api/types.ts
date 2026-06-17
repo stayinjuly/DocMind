@@ -15,12 +15,6 @@ export interface ChatMessage {
   content: string
 }
 
-export interface UploadResponse {
-  success: boolean
-  message: string
-  documentId?: string
-}
-
 export interface AuthRequest {
   email: string
   password: string
