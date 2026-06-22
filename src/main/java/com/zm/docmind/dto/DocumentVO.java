@@ -21,7 +21,6 @@ public class DocumentVO {
     private int chunkCount;
     private DocumentStatus status;
     private LocalDateTime uploadTime;
-    private String userId;
 
     public static DocumentVO from(Document doc) {
         return DocumentVO.builder()
@@ -33,7 +32,6 @@ public class DocumentVO {
                 .chunkCount(doc.getChunkCount())
                 .status(doc.getStatus())
                 .uploadTime(doc.getUploadTime())
-                .userId(doc.getUserId())
                 .build();
     }
 }

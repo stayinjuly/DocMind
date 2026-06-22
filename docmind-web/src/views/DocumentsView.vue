@@ -216,7 +216,6 @@ function statusLabel(status: string) {
           {{ formatDate(row.uploadTime) }}
         </template>
       </el-table-column>
-      <el-table-column prop="userId" label="上传者" width="140" />
       <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
           <el-button type="danger" size="small" text :icon="Delete" @click="handleDelete(row)" />

@@ -7,7 +7,6 @@ export interface Document {
   chunkCount: number
   status: string
   uploadTime: string
-  userId: string
 }
 
 export interface ChatMessage {
