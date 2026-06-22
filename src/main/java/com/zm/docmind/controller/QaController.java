@@ -28,30 +28,30 @@ public class QaController {
     }
 
     @PostMapping
-    public ApiResponse<String> ask(@AuthenticationPrincipal String email,
-                                    @Valid @RequestBody QaRequest request) {
-        rateLimiter.checkAndConsume(email);
-        QaAssistant assistant = assistantManager.getAssistant(email);
+    public ApiResponse<String> ask(@AuthenticationPrincipal String userId,
+                                   @Valid @RequestBody QaRequest request) {
+        rateLimiter.checkAndConsume(userId);
+        QaAssistant assistant = assistantManager.getAssistant(userId);
         String answer = assistant.answer(request.getQuestion());
         return ApiResponse.ok(answer);
     }
 
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamAsk(@AuthenticationPrincipal String email,
+    public SseEmitter streamAsk(@AuthenticationPrincipal String userId,
                                 @Valid @RequestBody QaRequest request) {
-        rateLimiter.checkAndConsume(email);
+        rateLimiter.checkAndConsume(userId);
         String question = request.getQuestion();
         SseEmitter emitter = new SseEmitter(120000L);
 
         emitter.onTimeout(() -> {
-            log.warn("SSE 连接超时, 用户: {}", email);
+            log.warn("SSE 连接超时, 用户: {}", userId);
             emitter.complete();
         });
         emitter.onCompletion(() -> {
-            log.debug("SSE 连接关闭, 用户: {}", email);
+            log.debug("SSE 连接关闭, 用户: {}", userId);
         });
 
-        QaAssistant assistant = assistantManager.getAssistant(email);
+        QaAssistant assistant = assistantManager.getAssistant(userId);
 
         assistant.stream(question)
                 .onPartialResponse(token -> {
@@ -70,7 +70,7 @@ public class QaController {
                     }
                 })
                 .onError(e -> {
-                    log.error("流式问答出错, 用户: {}", email, e);
+                    log.error("流式问答出错, 用户: {}", userId, e);
                     try {
                         emitter.send(SseEmitter.event().data("[ERROR] 问答服务暂时不可用"));
                         emitter.completeWithError(e);
@@ -84,8 +84,8 @@ public class QaController {
     }
 
     @DeleteMapping("/history")
-    public ApiResponse<Void> clearHistory(@AuthenticationPrincipal String email) {
-        assistantManager.clearUserHistory(email);
+    public ApiResponse<Void> clearHistory(@AuthenticationPrincipal String userId) {
+        assistantManager.clearUserHistory(userId);
         return ApiResponse.ok("对话历史已清除", null);
     }
 }

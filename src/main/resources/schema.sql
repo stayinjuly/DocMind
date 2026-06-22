@@ -13,7 +13,7 @@
         type VARCHAR(20) NOT NULL,                                    -- 文件类型（txt, md, pdf, docx）
         size BIGINT NOT NULL DEFAULT 0,                               -- 文件大小（字节）
         file_path VARCHAR(1000) NOT NULL,                             -- 文件存储路径
-        user_id VARCHAR(255) NOT NULL,                                -- 上传用户ID（邮箱）
+        user_id VARCHAR(255) NOT NULL,                                -- 上传用户ID（sys_user.id）
         is_public BOOLEAN NOT NULL DEFAULT FALSE,                     -- 是否公共文档
         chunk_count INTEGER NOT NULL DEFAULT 0,                       -- 文档分块数量
         status VARCHAR(20) NOT NULL DEFAULT 'PENDING',                -- 处理状态（PENDING/PROCESSING/COMPLETED/FAILED）
@@ -39,7 +39,7 @@
     COMMENT ON COLUMN doc_document.type IS '文件类型（txt, md, pdf, docx）';
     COMMENT ON COLUMN doc_document.size IS '文件大小（字节）';
     COMMENT ON COLUMN doc_document.file_path IS '文件存储路径';
-    COMMENT ON COLUMN doc_document.user_id IS '上传用户ID（邮箱）';
+    COMMENT ON COLUMN doc_document.user_id IS '上传用户ID（sys_user.id）';
     COMMENT ON COLUMN doc_document.is_public IS '是否公共文档';
     COMMENT ON COLUMN doc_document.chunk_count IS '文档分块数量';
     COMMENT ON COLUMN doc_document.status IS '处理状态（PENDING/PROCESSING/COMPLETED/FAILED）';

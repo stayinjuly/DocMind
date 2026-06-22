@@ -26,10 +26,10 @@ public class DocumentController {
 
     @GetMapping
     public ApiResponse<Page<DocumentVO>> listDocuments(
-            @AuthenticationPrincipal String email,
+            @AuthenticationPrincipal String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<DocumentVO> result = documentService.getDocumentsByUser(email, PageRequest.of(page, size))
+        Page<DocumentVO> result = documentService.getDocumentsByUser(userId, PageRequest.of(page, size))
                 .map(DocumentVO::from);
         return ApiResponse.ok(result);
     }
@@ -47,22 +47,22 @@ public class DocumentController {
     public ResponseEntity<ApiResponse<String>> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "isPublic", defaultValue = "false") boolean isPublic,
-            @AuthenticationPrincipal String email) {
-        String documentId = documentService.uploadDocument(file, email, isPublic);
+            @AuthenticationPrincipal String userId) {
+        String documentId = documentService.uploadDocument(file, userId, isPublic);
         return ResponseEntity.ok(ApiResponse.ok("文档上传成功", documentId));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteDocument(@PathVariable String id,
-                                                             @AuthenticationPrincipal String email) {
-        documentService.deleteDocument(id, email);
+                                                             @AuthenticationPrincipal String userId) {
+        documentService.deleteDocument(id, userId);
         return ResponseEntity.ok(ApiResponse.ok("文档删除成功", null));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<DocumentVO>> getDocument(@PathVariable String id,
-                                                                 @AuthenticationPrincipal String email) {
-        Document document = documentService.getDocumentForUser(id, email);
+                                                                 @AuthenticationPrincipal String userId) {
+        Document document = documentService.getDocumentForUser(id, userId);
         return ResponseEntity.ok(ApiResponse.ok(DocumentVO.from(document)));
     }
 }

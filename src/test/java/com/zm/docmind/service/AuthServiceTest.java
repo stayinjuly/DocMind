@@ -21,6 +21,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,7 +50,8 @@ class AuthServiceTest {
         void success() {
             when(userRepository.existsByEmail("user@test.com")).thenReturn(false);
             when(passwordEncoder.encode("password123")).thenReturn("encodedPwd");
-            when(jwtService.generateToken("user@test.com")).thenReturn("jwt-token");
+            // register 内部新建的 User.id 由 DB 生成，单测中未回填，故用 anyString 匹配
+            when(jwtService.generateToken(anyString())).thenReturn("jwt-token");
 
             var response = authService.register("user@test.com", "password123");
 
@@ -122,10 +124,10 @@ class AuthServiceTest {
         @Test
         @DisplayName("正常登录应返回 AuthResponse")
         void success() {
-            User user = User.builder().email("user@test.com").password("encodedPwd").build();
+            User user = User.builder().id(1L).email("user@test.com").password("encodedPwd").build();
             when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
             when(passwordEncoder.matches("password123", "encodedPwd")).thenReturn(true);
-            when(jwtService.generateToken("user@test.com")).thenReturn("jwt-token");
+            when(jwtService.generateToken("1")).thenReturn("jwt-token");
 
             var response = authService.login("user@test.com", "password123");
 
@@ -158,12 +160,12 @@ class AuthServiceTest {
         @Test
         @DisplayName("登录时 email 应被 trim + toLowerCase")
         void emailNormalization() {
-            User user = User.builder().email("user@test.com").password("encodedPwd").build();
+            User user = User.builder().id(1L).email("user@test.com").password("encodedPwd").build();
             when(userRepository.findByEmail("user@test.com")).thenReturn(Optional.of(user));
             when(passwordEncoder.matches("password123", "encodedPwd")).thenReturn(true);
-            when(jwtService.generateToken("user@test.com")).thenReturn("jwt-token");
+            when(jwtService.generateToken("1")).thenReturn("jwt-token");
 
-            var response = authService.login("  User@Test.COM  ", "password123");
+            var response = authService.login("  User@test.com  ", "password123");
 
             assertThat(response.getEmail()).isEqualTo("user@test.com");
             verify(userRepository).findByEmail("user@test.com");

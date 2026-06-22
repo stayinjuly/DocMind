@@ -58,7 +58,7 @@ public class AuthService {
                 .build();
         userRepository.save(user);
 
-        String token = jwtService.generateToken(email);
+        String token = jwtService.generateToken(String.valueOf(user.getId()));
         return AuthResponse.of(token, email);
     }
 
@@ -74,7 +74,7 @@ public class AuthService {
             throw new InvalidCredentialsException("邮箱或密码错误");
         }
 
-        String token = jwtService.generateToken(email);
+        String token = jwtService.generateToken(String.valueOf(user.getId()));
         return AuthResponse.of(token, email);
     }
 }

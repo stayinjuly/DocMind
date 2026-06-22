@@ -17,8 +17,8 @@ import java.util.List;
 
 /**
  * JWT 认证过滤器
- * 从 Authorization 请求头中提取 Bearer JWT 令牌并验证
- * （SSE 流式问答已改用 fetch + Authorization 头，不再需要查询参数回退）
+ * 从 Authorization 请求头中提取 Bearer JWT 令牌并验证；
+ * 认证通过后以用户标识（sys_user.id 的字符串形式）作为 SecurityContext 的 principal。
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -37,12 +37,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = extractToken(request);
 
-        if (token != null && jwtService.isTokenValid(token)) {
-            String email = jwtService.extractEmail(token);
-            var auth = new UsernamePasswordAuthenticationToken(
-                    email, null,
-                    List.of(new SimpleGrantedAuthority("ROLE_USER")));
-            SecurityContextHolder.getContext().setAuthentication(auth);
+        // 单次解析：解析失败（非法/过期/篡改）直接放行，交由 Security 鉴权链处理 401
+        if (token != null) {
+            jwtService.parse(token).ifPresent(claims -> {
+                String userId = claims.getSubject();
+                var auth = new UsernamePasswordAuthenticationToken(
+                        userId, null,
+                        List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            });
         }
 
         filterChain.doFilter(request, response);
