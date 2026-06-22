@@ -1,5 +1,7 @@
 package com.zm.docmind.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zm.docmind.dto.ApiResponse;
 import com.zm.docmind.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
@@ -28,10 +30,13 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final List<String> allowedOrigins;
+    private final ObjectMapper objectMapper;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                          ObjectMapper objectMapper,
                           @org.springframework.beans.factory.annotation.Value("${docmind.cors.allowed-origins:*}") List<String> allowedOrigins) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.objectMapper = objectMapper;
         this.allowedOrigins = allowedOrigins;
     }
 
@@ -50,8 +55,13 @@ public class SecurityConfig {
                     .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
-                    .authenticationEntryPoint((request, response, authException) ->
-                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "未登录或令牌已过期"))
+                    // 未认证统一返回 ApiResponse JSON，而非 Spring 默认 HTML 错误页
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write(
+                                objectMapper.writeValueAsString(ApiResponse.error("未登录或令牌已过期")));
+                    })
             )
             .headers(headers ->
                     headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
