@@ -72,8 +72,9 @@ export const documentApi = {
 
 // 问答 API
 export const qaApi = {
+  // 同步问答超时 35s，略大于后端 chat 超时(默认 30s)，确保后端的超时错误能传达给前端
   ask: (question: string) =>
-    api.post('/qa', { question }),
+    api.post('/qa', { question }, { timeout: 35000 }),
 
   clearHistory: () =>
     api.delete('/qa/history'),
