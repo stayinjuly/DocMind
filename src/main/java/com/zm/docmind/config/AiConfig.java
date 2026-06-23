@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
+import java.time.Duration;
 
 /**
  * 核心 Bean 配置：
@@ -40,6 +41,12 @@ public class AiConfig {
 
     @Value("${docmind.chat.model}")
     private String chatModelName;
+
+    @Value("${docmind.chat.timeout-seconds:30}")
+    private int chatTimeoutSeconds;
+
+    @Value("${docmind.chat.streaming-timeout-seconds:60}")
+    private int streamingTimeoutSeconds;
 
     // Embedding 模型配置
     @Value("${docmind.embedding.provider}")
@@ -67,22 +74,24 @@ public class AiConfig {
     /** Chat 模型，通过 OpenAI 兼容协议对接 */
     @Bean
     public ChatModel chatModel() {
-        log.info("初始化 Chat 模型: baseUrl={}, model={}", chatBaseUrl, chatModelName);
+        log.info("初始化 Chat 模型: baseUrl={}, model={}, timeout={}s", chatBaseUrl, chatModelName, chatTimeoutSeconds);
         return OpenAiChatModel.builder()
                 .apiKey(chatApiKey)
                 .modelName(chatModelName)
                 .baseUrl(chatBaseUrl)
+                .timeout(Duration.ofSeconds(chatTimeoutSeconds))
                 .build();
     }
 
     /** 流式 Chat 模型 */
     @Bean
     public StreamingChatModel streamingChatModel() {
-        log.info("初始化 StreamingChat 模型: baseUrl={}, model={}", chatBaseUrl, chatModelName);
+        log.info("初始化 StreamingChat 模型: baseUrl={}, model={}, timeout={}s", chatBaseUrl, chatModelName, streamingTimeoutSeconds);
         return OpenAiStreamingChatModel.builder()
                 .apiKey(chatApiKey)
                 .modelName(chatModelName)
                 .baseUrl(chatBaseUrl)
+                .timeout(Duration.ofSeconds(streamingTimeoutSeconds))
                 .build();
     }
 

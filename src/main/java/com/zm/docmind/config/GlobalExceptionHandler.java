@@ -96,6 +96,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("接口不存在"));
     }
 
+    @ExceptionHandler(dev.langchain4j.exception.TimeoutException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLlmTimeout(dev.langchain4j.exception.TimeoutException e) {
+        log.warn("LLM 调用超时", e);
+        return ResponseEntity.status(HttpStatus.GATEWAY_TIMEOUT)
+                .body(ApiResponse.error("问答服务响应超时，请稍后重试"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception e) {
         log.error("未处理异常", e);
